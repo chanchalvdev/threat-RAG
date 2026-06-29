@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python*)",
+      "Bash(pip*)",
+      "Bash(uvicorn*)",
+      "Bash(pytest*)",
+      "Bash(ruff*)",
+      "Bash(mypy*)",
+      "Bash(npm*)",
+      "Bash(node*)",
+      "Bash(vite*)",
+      "Bash(docker*)",
+      "Bash(docker-compose*)",
+      "Bash(make*)",
+      "Bash(curl*)",
+      "Bash(cat*)",
+      "Bash(ls*)",
+      "Bash(find*)",
+      "Bash(grep*)",
+      "Bash(mkdir*)",
+      "Bash(cp*)",
+      "Bash(mv*)",
+      "Bash(git*)",
+      "Bash(jq*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/chanchal/mastering/threat-RAG/.claude/hooks/post-edit.sh \"$CLAUDE_TOOL_INPUT_FILE_PATH\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/chanchal/mastering/threat-RAG/.claude/hooks/on-stop.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
