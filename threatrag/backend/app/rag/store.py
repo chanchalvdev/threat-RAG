@@ -58,13 +58,14 @@ class QdrantStore:
                     for dt in doc_types
                 ]
             )
-        return await self._client.search(
+        result = await self._client.query_points(
             collection_name=self.collection,
-            query_vector=vector,
+            query=vector,
             limit=k,
             query_filter=query_filter,
             with_payload=True,
         )
+        return result.points
 
     async def count_by_doc_type(self) -> dict[str, int]:
         settings = get_settings()
