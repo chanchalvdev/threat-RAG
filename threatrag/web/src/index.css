@@ -3,17 +3,55 @@
 @tailwind utilities;
 
 @layer base {
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-gray-900; }
-  ::-webkit-scrollbar-thumb { @apply bg-gray-600 rounded; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-600 rounded-full border-2 border-transparent bg-clip-padding; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
+
+  ::selection { @apply bg-accent-faint text-accent-bright; }
+
+  button, a, input, textarea, select {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-0;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-800 border border-line rounded-xl shadow-card;
+  }
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:hover:bg-accent
+           text-surface-950 font-semibold rounded-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-surface-700 hover:bg-surface-600 border border-line
+           text-slate-200 font-medium rounded-lg transition-colors;
+  }
+  .input-base {
+    @apply bg-surface-800 border border-line rounded-lg text-sm text-slate-100
+           placeholder-slate-500 focus:border-accent-dim transition-colors;
+  }
 }
 
 @layer utilities {
   .blink-cursor::after {
     content: '▋';
+    @apply text-accent;
     animation: blink 1s step-end infinite;
   }
   @keyframes blink {
     50% { opacity: 0; }
+  }
+
+  /* Three-dot "thinking" indicator */
+  .thinking-dot {
+    @apply inline-block w-1.5 h-1.5 rounded-full bg-accent;
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+  .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse-dot {
+    0%, 60%, 100% { opacity: 0.25; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1); }
   }
 }

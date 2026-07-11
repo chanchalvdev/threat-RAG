@@ -49,11 +49,18 @@ async def _run_owasp(job_id: str, store: QdrantStore) -> None:
         _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
 
 
-@router.post("/pdf", response_model=IngestAccepted, status_code=202)
+@router.post(
+    "/pdf",
+    response_model=IngestAccepted,
+    status_code=202,
+    summary="Ingest a custom PDF document",
+    description="Uploads a PDF (multipart/form-data), chunks and embeds it in the background, "
+    "and returns a job_id to poll via GET /ingest/status/{job_id}.",
+)
 async def ingest_pdf_route(
     bg: BackgroundTasks,
-    file: UploadFile = File(...),
-    doc_type: str = Form(default="custom"),
+    file: UploadFile = File(..., description="PDF file to ingest"),
+    doc_type: str = Form(default="custom", description="Label stored alongside each chunk, e.g. 'custom', 'threat_report'"),
     store: QdrantStore = Depends(get_store),
 ) -> IngestAccepted:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -64,7 +71,13 @@ async def ingest_pdf_route(
     return IngestAccepted(job_id=job_id, filename=file.filename or "")
 
 
-@router.post("/mitre", response_model=IngestAccepted, status_code=202)
+@router.post(
+    "/mitre",
+    response_model=IngestAccepted,
+    status_code=202,
+    summary="Ingest the bundled MITRE ATT&CK dataset",
+    description="Reads data/sources/mitre_attack.json, chunks and embeds it in the background.",
+)
 async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     job_id = str(uuid.uuid4())
@@ -72,14 +85,25 @@ async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(g
     return IngestAccepted(job_id=job_id)
 
 
-@router.post("/owasp", response_model=IngestAccepted, status_code=202)
+@router.post(
+    "/owasp",
+    response_model=IngestAccepted,
+    status_code=202,
+    summary="Ingest the bundled OWASP LLM Top 10 dataset",
+    description="Reads data/sources/owasp_llm_top10.pdf, chunks and embeds it in the background.",
+)
 async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
     job_id = str(uuid.uuid4())
     bg.add_task(_run_owasp, job_id, store)
     return IngestAccepted(job_id=job_id)
 
 
-@router.get("/status/{job_id}", response_model=IngestJob)
+@router.get(
+    "/status/{job_id}",
+    response_model=IngestJob,
+    summary="Poll an ingestion job's status",
+    responses={404: {"description": "Job not found", "content": {"application/json": {"example": {"detail": "Job not found"}}}}},
+)
 async def get_status(job_id: str) -> IngestJob:
     job = _jobs.get(job_id)
     if not job:
@@ -87,7 +111,12 @@ async def get_status(job_id: str) -> IngestJob:
     return job
 
 
-@router.get("/stats", response_model=IngestStats)
+@router.get(
+    "/stats",
+    response_model=IngestStats,
+    summary="Get vector store statistics",
+    description="Returns the total vector count and per-document-type breakdown in the collection.",
+)
 async def get_stats(store: QdrantStore = Depends(get_store)) -> IngestStats:
     info = await store._client.get_collection(store.collection)
     return IngestStats(

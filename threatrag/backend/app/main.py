@@ -26,7 +26,23 @@ async def lifespan(app: FastAPI):
     log.info("shutdown")
 
 
-app = FastAPI(title="ThreatRAG API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="ThreatRAG API",
+    version="1.0.0",
+    description=(
+        "Cybersecurity RAG + agentic investigation API over MITRE ATT&CK, OWASP LLM Top 10, "
+        "and live CVE data. Every endpoint below has a sample request/response body — expand "
+        "an operation and click **Try it out** to execute it against this server."
+    ),
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "ingest", "description": "Load MITRE ATT&CK / OWASP / custom PDF sources into the vector store"},
+        {"name": "query", "description": "Ask questions against the RAG knowledge base"},
+        {"name": "chat", "description": "Conversational ReAct agent with tool use (RAG + NVD CVE + web search)"},
+        {"name": "investigate", "description": "Multi-agent Researcher → Critic → Reporter IOC investigations"},
+        {"name": "evaluate", "description": "RAGAs-based quality scoring of RAG answers"},
+    ],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,12 +60,18 @@ app.include_router(investigate.router, prefix="/api/v1")
 app.include_router(evaluate.router, prefix="/api/v1")
 
 
-@app.get("/health", response_model=HealthCheck)
+@app.get("/health", response_model=HealthCheck, tags=["health"], summary="Liveness check")
 async def health() -> HealthCheck:
     return HealthCheck(status="ok")
 
 
-@app.get("/health/ready", response_model=ReadinessCheck)
+@app.get(
+    "/health/ready",
+    response_model=ReadinessCheck,
+    tags=["health"],
+    summary="Readiness check",
+    description="Verifies Qdrant, Ollama, and the LLM are reachable. Cached for 30s.",
+)
 async def health_ready() -> ReadinessCheck:
     now = time.time()
     if _ready_cache["data"] and now < _ready_cache["expires"]:

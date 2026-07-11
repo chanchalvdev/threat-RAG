@@ -1,96 +1,127 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Loader2, AlertTriangle } from 'lucide-react'
 import axios from 'axios'
+import { cn } from '../lib/cn'
 
 const METRICS = [
-  { key: 'faithfulness',       label: 'Faithfulness',        color: '#3b82f6' },
-  { key: 'answer_relevancy',   label: 'Answer Relevancy',    color: '#a855f7' },
-  { key: 'context_precision',  label: 'Context Precision',   color: '#22c55e' },
-  { key: 'context_recall',     label: 'Context Recall',      color: '#f97316' },
+  { key: 'faithfulness',      label: 'Faithfulness',      color: '#22D3EE' },
+  { key: 'answer_relevancy',  label: 'Answer Relevancy',  color: '#a855f7' },
+  { key: 'context_precision', label: 'Context Precision', color: '#22c55e' },
+  { key: 'context_recall',    label: 'Context Recall',    color: '#f97316' },
 ]
 
-interface EvalRequest {
-  question: string
-  answer: string
-  contexts: string
-  ground_truth?: string
-}
+const FIELDS = [
+  { key: 'question',     label: 'Question',     rows: 2, placeholder: 'The question that was asked' },
+  { key: 'answer',       label: 'Answer',       rows: 2, placeholder: 'The generated answer to evaluate' },
+  { key: 'contexts',     label: 'Contexts',     rows: 3, placeholder: 'Retrieved context passages — one per line' },
+  { key: 'ground_truth', label: 'Ground truth (optional)', rows: 2, placeholder: 'Reference answer, enables context recall' },
+] as const
+
+type FormKey = typeof FIELDS[number]['key']
 
 export default function Analytics() {
-  const [evalForm, setEvalForm] = useState<EvalRequest>({ question: '', answer: '', contexts: '' })
-  const [evalResult, setEvalResult] = useState<Record<string, number> | null>(null)
+  const [form, setForm] = useState<Record<FormKey, string>>({ question: '', answer: '', contexts: '', ground_truth: '' })
+  const [result, setResult] = useState<Record<string, number> | null>(null)
   const [evaluating, setEvaluating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const runEval = async () => {
-    setEvaluating(true)
-    try {
-      const r = await axios.post('/api/v1/evaluate', {
-        question: evalForm.question,
-        answer: evalForm.answer,
-        contexts: evalForm.contexts.split('\n').filter(Boolean),
-        ground_truth: evalForm.ground_truth || undefined,
-      })
-      setEvalResult(r.data)
-    } catch {}
-    setEvaluating(false)
-  }
-
-  const mockData = Array.from({ length: 10 }, (_, i) => ({
+  // Demo trend data — memoized so charts don't jitter on re-render
+  const mockData = useMemo(() => Array.from({ length: 10 }, (_, i) => ({
     t: i + 1,
     faithfulness: 0.7 + Math.random() * 0.25,
     answer_relevancy: 0.65 + Math.random() * 0.3,
     context_precision: 0.6 + Math.random() * 0.35,
     context_recall: 0.55 + Math.random() * 0.4,
-  }))
+  })), [])
+
+  const canRun = form.question.trim() && form.answer.trim() && form.contexts.trim()
+
+  const runEval = async () => {
+    setEvaluating(true)
+    setError(null)
+    try {
+      const r = await axios.post('/api/v1/evaluate', {
+        question: form.question,
+        answer: form.answer,
+        contexts: form.contexts.split('\n').filter(Boolean),
+        ground_truth: form.ground_truth || undefined,
+      })
+      setResult(r.data)
+    } catch {
+      setError('Evaluation failed — check that the backend and RAGAs pipeline are running.')
+    } finally {
+      setEvaluating(false)
+    }
+  }
 
   return (
-    <div className="p-6 max-w-5xl space-y-8">
-      <h2 className="text-lg font-semibold">RAGAs Quality Metrics</h2>
-
-      <div className="grid grid-cols-2 gap-4">
-        {METRICS.map(m => (
-          <div key={m.key} className="bg-gray-800 rounded-xl p-4">
-            <p className="text-sm font-medium text-gray-300 mb-3">{m.label}</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <LineChart data={mockData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="t" tick={{ fontSize: 10 }} stroke="#6b7280" />
-                <YAxis domain={[0, 1]} tick={{ fontSize: 10 }} stroke="#6b7280" />
-                <Tooltip contentStyle={{ background: '#1f2937', border: 'none', fontSize: 11 }} />
-                <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="4 4" />
-                <ReferenceLine y={0.5} stroke="#eab308" strokeDasharray="4 4" />
-                <Line type="monotone" dataKey={m.key} stroke={m.color} dot={false} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ))}
-      </div>
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <section>
+        <h2 className="text-base font-semibold text-slate-100 mb-1">Quality trends</h2>
+        <p className="text-xs text-slate-500 mb-4">RAGAs metrics over recent evaluations · green line = target (0.8), yellow = floor (0.5)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {METRICS.map(m => (
+            <div key={m.key} className="card p-4">
+              <p className="text-sm font-medium text-slate-300 mb-3">{m.label}</p>
+              <ResponsiveContainer width="100%" height={120}>
+                <LineChart data={mockData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#18233B" />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#697894' }} stroke="#22304F" />
+                  <YAxis domain={[0, 1]} tick={{ fontSize: 10, fill: '#697894' }} stroke="#22304F" />
+                  <Tooltip contentStyle={{ background: '#111A2C', border: '1px solid #1D2A45', borderRadius: 8, fontSize: 11 }} />
+                  <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.5} />
+                  <ReferenceLine y={0.5} stroke="#eab308" strokeDasharray="4 4" strokeOpacity={0.5} />
+                  <Line type="monotone" dataKey={m.key} stroke={m.color} dot={false} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Eval form */}
-      <div className="bg-gray-800 rounded-xl p-6 space-y-3">
-        <h3 className="font-medium text-sm">Run Evaluation</h3>
-        {(['question', 'answer', 'contexts', 'ground_truth'] as const).map(field => (
-          <div key={field}>
-            <label className="text-xs text-gray-400 capitalize">{field.replace('_', ' ')}</label>
-            <textarea rows={field === 'contexts' ? 3 : 2}
-              value={evalForm[field] ?? ''}
-              onChange={e => setEvalForm(p => ({ ...p, [field]: e.target.value }))}
-              placeholder={field === 'contexts' ? 'One context per line' : ''}
-              className="w-full mt-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm resize-none" />
+      <section className="card p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-sm text-slate-100">Run an evaluation</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Score a question / answer / context triple with RAGAs</p>
+        </div>
+        {FIELDS.map(({ key, label, rows, placeholder }) => (
+          <div key={key}>
+            <label htmlFor={`eval-${key}`} className="text-xs font-medium text-slate-400">{label}</label>
+            <textarea id={`eval-${key}`} rows={rows} value={form[key]} placeholder={placeholder}
+              onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+              className="input-base w-full mt-1.5 px-3 py-2 resize-none" />
           </div>
         ))}
-        <button onClick={runEval} disabled={evaluating}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg">
-          {evaluating ? 'Evaluating...' : 'Evaluate'}
+        <button onClick={runEval} disabled={evaluating || !canRun}
+          className="btn-primary text-sm px-5 py-2.5 flex items-center gap-2">
+          {evaluating && <Loader2 size={14} className="animate-spin" />}
+          {evaluating ? 'Evaluating…' : 'Evaluate'}
         </button>
-        {evalResult && (
-          <div className="bg-gray-700 rounded-lg p-3 text-xs font-mono">
-            {Object.entries(evalResult).map(([k, v]) => (
-              <p key={k}>{k}: <span className="text-blue-300">{typeof v === 'number' ? v.toFixed(3) : v}</span></p>
+
+        {error && (
+          <p className="flex items-center gap-2 text-sm text-red-400">
+            <AlertTriangle size={14} className="shrink-0" /> {error}
+          </p>
+        )}
+
+        {result && (
+          <div className="bg-surface-900 border border-line rounded-lg p-4 space-y-2.5 animate-slide-in">
+            {Object.entries(result).filter(([, v]) => typeof v === 'number').map(([k, v]) => (
+              <div key={k} className="flex items-center gap-3">
+                <span className="text-xs text-slate-400 w-40 capitalize">{k.replace(/_/g, ' ')}</span>
+                <div className="flex-1 h-2 bg-surface-600 rounded-full overflow-hidden">
+                  <div className={cn('h-full rounded-full transition-all duration-500',
+                    v >= 0.8 ? 'bg-emerald-400' : v >= 0.5 ? 'bg-yellow-400' : 'bg-red-500')}
+                    style={{ width: `${Math.min(v, 1) * 100}%` }} />
+                </div>
+                <span className="text-xs text-slate-200 font-mono w-12 text-right">{v.toFixed(3)}</span>
+              </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

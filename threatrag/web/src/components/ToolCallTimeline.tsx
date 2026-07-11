@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Database, Shield, Globe, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
-import { cn } from '../lib/cn'
 
 export interface ToolCallEntry {
   tool_use_id: string
@@ -9,10 +8,10 @@ export interface ToolCallEntry {
   result?: string
 }
 
-const TOOL_ICONS: Record<string, React.ReactNode> = {
-  threat_rag_search: <Database size={14} />,
-  nvd_cve_lookup:    <Shield size={14} />,
-  web_search:        <Globe size={14} />,
+const TOOL_META: Record<string, { icon: React.ReactNode; label: string }> = {
+  threat_rag_search: { icon: <Database size={13} />, label: 'Knowledge base search' },
+  nvd_cve_lookup:    { icon: <Shield size={13} />,   label: 'NVD CVE lookup' },
+  web_search:        { icon: <Globe size={13} />,    label: 'Web search' },
 }
 
 export default function ToolCallTimeline({ calls }: { calls: ToolCallEntry[] }) {
@@ -20,27 +19,30 @@ export default function ToolCallTimeline({ calls }: { calls: ToolCallEntry[] }) 
   if (calls.length === 0) return null
 
   return (
-    <div className="space-y-2 mt-2">
-      {calls.map(c => (
-        <div key={c.tool_use_id}
-          className={cn('rounded-lg border border-gray-700 bg-gray-850 overflow-hidden animate-slide-in')}>
-          <button onClick={() => setExpanded(expanded === c.tool_use_id ? null : c.tool_use_id)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-gray-800">
-            <span className="text-gray-400">{TOOL_ICONS[c.name] ?? <Database size={14} />}</span>
-            <span className="bg-gray-700 text-gray-200 px-1.5 py-0.5 rounded font-mono">{c.name}</span>
-            <span className="text-gray-400 truncate flex-1">{c.input.slice(0, 80)}</span>
-            {c.result === undefined
-              ? <Loader2 size={12} className="text-blue-400 animate-spin" />
-              : expanded === c.tool_use_id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-          {expanded === c.tool_use_id && c.result !== undefined && (
-            <div className="px-3 pb-2 text-xs text-gray-300 border-t border-gray-700 font-mono whitespace-pre-wrap">
-              <p className="text-gray-500 mb-1">Input: {c.input}</p>
-              <p>{c.result.slice(0, 500)}</p>
-            </div>
-          )}
-        </div>
-      ))}
+    <div className="space-y-1.5 mt-1 border-l-2 border-line pl-3">
+      {calls.map(c => {
+        const meta = TOOL_META[c.name] ?? { icon: <Database size={13} />, label: c.name }
+        const open = expanded === c.tool_use_id
+        return (
+          <div key={c.tool_use_id} className="card rounded-lg overflow-hidden animate-slide-in">
+            <button onClick={() => setExpanded(open ? null : c.tool_use_id)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-surface-700 transition-colors">
+              <span className="text-accent">{meta.icon}</span>
+              <span className="text-slate-300 font-medium shrink-0">{meta.label}</span>
+              <span className="text-slate-500 font-mono truncate flex-1">{c.input.slice(0, 80)}</span>
+              {c.result === undefined
+                ? <Loader2 size={12} className="text-accent animate-spin shrink-0" />
+                : open ? <ChevronUp size={12} className="text-slate-500" /> : <ChevronDown size={12} className="text-slate-500" />}
+            </button>
+            {open && c.result !== undefined && (
+              <div className="px-3 py-2.5 text-xs border-t border-line font-mono whitespace-pre-wrap animate-fade-in">
+                <p className="text-slate-500 mb-1.5">Input: {c.input}</p>
+                <p className="text-slate-300 max-h-48 overflow-y-auto">{c.result.slice(0, 500)}</p>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

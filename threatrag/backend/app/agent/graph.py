@@ -34,6 +34,12 @@ class InvestigationRequest(BaseModel):
     ioc_type: Literal["ip", "hash", "domain", "cve", "technique"]
     session_id: str | None = None
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {"ioc": "CVE-2021-44228", "ioc_type": "cve", "session_id": None}
+        }
+    }
+
 
 class RagasScores(BaseModel):
     faithfulness: float = 0.0

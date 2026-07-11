@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.core.logging import get_logger
 
@@ -11,6 +11,18 @@ class RagasScores(BaseModel):
     context_precision: float
     context_recall: float | None = None
     overall: float
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "faithfulness": 0.92,
+                "answer_relevancy": 0.88,
+                "context_precision": 0.95,
+                "context_recall": 0.90,
+                "overall": 0.91,
+            }
+        }
+    )
 
 
 async def evaluate_response(

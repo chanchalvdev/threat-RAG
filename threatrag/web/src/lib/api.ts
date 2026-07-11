@@ -84,6 +84,15 @@ export async function streamQuery(
     body,
   })
 
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null)
+    const detail = payload?.detail
+    const message = Array.isArray(detail)
+      ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('; ')
+      : typeof detail === 'string' ? detail : `Request failed (HTTP ${res.status})`
+    throw new Error(message)
+  }
+
   const newSessionId = res.headers.get('X-Session-ID') ?? undefined
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
