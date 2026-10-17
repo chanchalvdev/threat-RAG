@@ -48,8 +48,18 @@ async def test_ingest_mitre_attack_chunks(mock_store, mock_embedder, tmp_path):
     count = await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
 
     assert count == 2
-    assert mock_embedder.embed.call_count == 2
+    mock_embedder.embed_batch.assert_awaited_once()
     assert mock_store.upsert.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_reingest_produces_identical_point_ids(mock_store, mock_embedder, tmp_path):
+    stix_file = tmp_path / "mitre_attack.json"
+    stix_file.write_text(json.dumps(MOCK_STIX))
+    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
+    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
+    first, second = (call.args[0] for call in mock_store.upsert.call_args_list)
+    assert [p.id for p in first] == [p.id for p in second]
 
 
 @pytest.mark.asyncio
@@ -111,7 +121,7 @@ async def test_ingest_pdf_basic(mock_store, mock_embedder, tmp_path):
         count = await ingest_pdf(str(pdf_path), "custom", mock_store, mock_embedder)
 
     assert count == 2
-    assert mock_embedder.embed.call_count == 2
+    mock_embedder.embed_batch.assert_awaited_once()
 
 
 @pytest.mark.asyncio

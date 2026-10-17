@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const http = axios.create({ baseURL: '/api/v1' })
+const API_KEY = import.meta.env.VITE_API_KEY // optional backend API_KEY guard; OIDC in Phase 4B
+export const apiHeaders = (extra: Record<string, string> = {}): Record<string, string> =>
+  API_KEY ? { ...extra, 'X-API-Key': API_KEY } : extra
+
+const http = axios.create({ baseURL: '/api/v1', headers: apiHeaders() })
 
 export interface SourceDoc {
   text: string
@@ -39,7 +43,36 @@ export type SSEEvent =
   | { type: 'done'; session_id?: string; total_tokens?: number }
   | { type: 'error'; data: string }
 
+export interface ReportSummary {
+  id: string
+  ioc: string
+  ioc_type: string
+  summary: string
+  created_at: string
+  similarity?: number | null
+}
+
+export interface EvaluationRecord {
+  id: string
+  question: string
+  faithfulness: number
+  answer_relevancy: number
+  context_precision: number
+  context_recall: number | null
+  overall: number
+  created_at: string
+}
+
 // --- REST calls ---
+
+export const listReports = (limit = 10) =>
+  http.get<ReportSummary[]>('/investigate/reports', { params: { limit } }).then(r => r.data)
+
+export const getEvaluationHistory = (limit = 50) =>
+  http.get<EvaluationRecord[]>('/evaluate/history', { params: { limit } }).then(r => r.data)
+
+export const runEvaluation = (body: { question: string; answer: string; contexts: string[]; ground_truth?: string }) =>
+  http.post<Record<string, number | null>>('/evaluate', body).then(r => r.data)
 
 export const queryRAG = (question: string, docTypes?: string[], k = 6) =>
   http.post<RAGResponse>('/query', { question, doc_types: docTypes, k }).then(r => r.data)
@@ -80,7 +113,7 @@ export async function streamQuery(
 
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body,
   })
 

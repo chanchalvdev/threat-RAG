@@ -18,5 +18,5 @@ def mock_store() -> QdrantStore:
 def mock_embedder() -> BaseEmbedder:
     embedder = MagicMock(spec=BaseEmbedder)
     embedder.embed = AsyncMock(return_value=[0.1] * 768)
-    embedder.embed_batch = AsyncMock(return_value=[[0.1] * 768])
+    embedder.embed_batch = AsyncMock(side_effect=lambda texts: [[0.1] * 768 for _ in texts])
     return embedder

@@ -1,0 +1,263 @@
+<title>ThreatRAG Architecture Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (max 1040px) — status strip → diagram → gap register → roadmap */
+:root {
+  --bg: #f5f7f9; --surface: #ffffff; --ink: #14202b; --muted: #5a6b7a; --line: #d9e1e8;
+  --accent: #0b6e7f; --done: #1f7a4d; --partial: #a86300; --open: #b3261e; --planned: #6b5bb0;
+  --done-bg: #e3f3ea; --partial-bg: #fbefdc; --open-bg: #fbe4e2; --planned-bg: #ece9f8;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f161d; --surface: #16212b; --ink: #e3eaf0; --muted: #93a4b3; --line: #273644;
+  --accent: #4fc0d0; --done: #5fd39a; --partial: #f0b45a; --open: #f2827a; --planned: #b3a6f0;
+  --done-bg: #173226; --partial-bg: #35280f; --open-bg: #3a1a18; --planned-bg: #241f3d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f161d; --surface: #16212b; --ink: #e3eaf0; --muted: #93a4b3; --line: #273644;
+  --accent: #4fc0d0; --done: #5fd39a; --partial: #f0b45a; --open: #f2827a; --planned: #b3a6f0;
+  --done-bg: #173226; --partial-bg: #35280f; --open-bg: #3a1a18; --planned-bg: #241f3d; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+main { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700; }
+h2 { font-size: 24px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); font-size: 17px; }
+section { display: flex; flex-direction: column; gap: 16px; }
+code, .mono { font-family: var(--mono); font-size: .9em; }
+.pill { display: inline-block; font: 500 11px var(--mono); padding: 2px 8px; border-radius: 99px; white-space: nowrap; letter-spacing: .03em; }
+.done { color: var(--done); background: var(--done-bg); }
+.partial { color: var(--partial); background: var(--partial-bg); }
+.open { color: var(--open); background: var(--open-bg); }
+.planned { color: var(--planned); background: var(--planned-bg); }
+
+/* Phase track */
+.track { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.stage { padding: 14px 14px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; position: relative; }
+.stage:last-child { border-right: 0; }
+.stage .k { font: 500 11px var(--mono); color: var(--muted); }
+.stage strong { font-family: var(--display); font-size: 16px; }
+.stage p { font-size: 13px; color: var(--muted); }
+.stage.here { background: var(--partial-bg); }
+.stage.here::before { content: "YOU ARE HERE"; position: absolute; top: -1px; right: 10px; font: 600 10px var(--mono); letter-spacing: .08em; color: var(--partial); }
+.bar { height: 4px; border-radius: 2px; background: var(--line); }
+.bar i { display: block; height: 100%; border-radius: 2px; }
+@media (max-width: 760px) { .track { grid-template-columns: 1fr 1fr; } .stage { border-bottom: 1px solid var(--line); } }
+
+.blocker { border: 1px solid var(--open); background: var(--open-bg); border-radius: 10px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
+.blocker b { color: var(--open); font-family: var(--display); }
+
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.diagram pre { margin: 0; min-width: 760px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.id { font-family: var(--mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.flow { counter-reset: s; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; border-left: 2px solid var(--line); }
+.flow li { counter-increment: s; position: relative; padding: 0 0 14px 22px; font-size: 14px; }
+.flow li::before { content: counter(s); position: absolute; left: -11px; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); color: var(--accent); font: 600 11px/16px var(--mono); text-align: center; }
+.flow li b { font-weight: 600; }
+.metrics { display: flex; flex-wrap: wrap; gap: 8px; }
+.metric { font: 500 13px var(--mono); padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.metric span { color: var(--muted); }
+</style>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">ThreatRAG · status as of 16 Oct 2026</div>
+    <h1>ThreatRAG Architecture Map</h1>
+    <p class="lede">Phases 1–3 were scaffolded but several agent paths never ran. This pass completed Phase 3, hardened the API, and proved every agent flow live. The project is now at the start of production hardening.</p>
+  </header>
+
+  <section aria-labelledby="where">
+    <h2 id="where">Where we are</h2>
+    <div class="track">
+      <div class="stage"><span class="k">PHASE 1</span><strong>RAG core</strong><div class="bar"><i class="done" style="width:100%;background:var(--done)"></i></div><p>Ingest MITRE + OWASP, cited Q&amp;A, SSE</p></div>
+      <div class="stage"><span class="k">PHASE 2</span><strong>Agentic chat</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>ReAct + NVD + web. Memory &amp; tool cap repaired</p></div>
+      <div class="stage"><span class="k">PHASE 3</span><strong>Multi-agent</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Researcher→Critic→Reporter, pgvector, eval. Completed now</p></div>
+      <div class="stage here"><span class="k">PHASE 4A</span><strong>Hardening I</strong><div class="bar"><i style="width:80%;background:var(--partial)"></i></div><p>Upload safety, API key, readiness, idempotent ingest</p></div>
+      <div class="stage"><span class="k">PHASE 4B</span><strong>Production ops</strong><div class="bar"><i style="width:0"></i></div><p>OIDC, Redis, workers, tracing, CI/CD</p></div>
+      <div class="stage"><span class="k">PHASE 4C</span><strong>SOC features</strong><div class="bar"><i style="width:0"></i></div><p>Enrichment, feeds, hybrid search, SIEM</p></div>
+    </div>
+    <div class="blocker" role="note">
+      <span class="pill open">BLOCKER</span>
+      <p><b>Kimchi account is out of credits.</b> Every model on <code>llm.kimchi.dev</code> returns HTTP 402, and <code>kimi-k2.6</code> is no longer listed (now <code>kimi-k2.7</code> / <code>kimi-k3</code>). Live tests ran on local <code>qwen2.5:3b</code> through the same client, so the mechanics are proven. Report quality still needs a re-check on Kimchi.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="arch">
+    <h2 id="arch">System architecture</h2>
+    <p class="lede">Every box is a real module. Color shows build status after this pass.</p>
+    <div class="legend">
+      <span><span class="pill done">built + live-tested</span></span>
+      <span><span class="pill partial">built, gaps open</span></span>
+      <span><span class="pill planned">planned (4B/4C)</span></span>
+    </div>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph Client["React 18 console"]
+    UI_CHAT["Chat page<br/>tool timeline"]
+    UI_INV["Investigate page<br/>live agent cards"]
+    UI_KB["Knowledge base<br/>upload + stats"]
+    UI_AN["Analytics<br/>eval trends"]
+  end
+
+  subgraph Edge["API edge · FastAPI"]
+    AUTH["X-API-Key guard<br/>CORS from settings"]
+    OIDC["OIDC / RBAC<br/>rate limits"]
+  end
+
+  subgraph Services["Service layer"]
+    QRY["/query<br/>ThreatRAGChain"]
+    CHAT["/chat<br/>ReAct agent + 10-turn memory"]
+    INV["/investigate<br/>investigation_service"]
+    EVAL["/evaluate<br/>LLM-judge RAGAs"]
+    ING["/ingest<br/>MITRE · OWASP · PDF"]
+  end
+
+  subgraph Graph["LangGraph investigation"]
+    R["Researcher<br/>ReAct sub-agent"] --> C["Critic<br/>APPROVED / NEEDS_REVISION"]
+    C -- "gaps, pass &lt; 2" --> R
+    C -- "approved / pass 2" --> W["Reporter<br/>streams markdown"]
+  end
+
+  subgraph Tools["Agent tools"]
+    T1["threat_rag_search"]
+    T2["nvd_cve_lookup"]
+    T3["web_search (Tavily)"]
+    T4["VirusTotal · AbuseIPDB<br/>OTX · Shodan"]
+  end
+
+  subgraph Data["Data plane"]
+    QD[("Qdrant<br/>961 vectors")]
+    PG[("Postgres + pgvector<br/>reports · evaluations")]
+    OL["Ollama<br/>nomic-embed-text 768d"]
+    LLM["LLM gateway<br/>Kimchi (402) · local fallback"]
+    RD[("Redis<br/>sessions · jobs")]
+  end
+
+  Client --> AUTH --> Services
+  AUTH -.-> OIDC
+  CHAT --> Tools
+  INV --> Graph
+  R --> Tools
+  T1 --> QD
+  QRY --> QD
+  ING --> OL --> QD
+  INV --> PG
+  EVAL --> PG
+  Services --> LLM
+  CHAT -.-> RD
+  ING -.-> RD
+
+  classDef done fill:#e3f3ea,stroke:#1f7a4d,color:#14202b
+  classDef partial fill:#fbefdc,stroke:#a86300,color:#14202b
+  classDef planned fill:#ece9f8,stroke:#6b5bb0,color:#14202b,stroke-dasharray:4 3
+  class UI_CHAT,UI_INV,UI_KB,UI_AN,AUTH,QRY,CHAT,INV,EVAL,ING,R,C,W,T1,T2,QD,PG,OL done
+  class LLM,T3 partial
+  class OIDC,T4,RD planned
+</pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="flow">
+    <h2 id="flow">One investigation, end to end</h2>
+    <p class="lede">Verified live with CVE-2021-44228 (Log4Shell) and CVE-2021-45046.</p>
+    <div class="grid2">
+      <div class="panel">
+        <ol class="flow">
+          <li><b>Validate IOC.</b> Per-type regex or <code>ipaddress</code>, normalised (CVE upper, domain lower). Injection strings get 422.</li>
+          <li><b>Researcher</b> runs a ReAct sub-agent capped at 10 tool calls, plus a direct KB retrieval so every report has citations.</li>
+          <li><b>Critic</b> returns APPROVED or a gap list; it can send work back once.</li>
+          <li><b>Reporter</b> streams the report token by token as <code>report_chunk</code>.</li>
+          <li><b>Persist.</b> Embed report → save to Postgres → pgvector finds similar past reports.</li>
+          <li><b>done</b> event carries <code>report_id</code>, sources, tool trail and similar reports.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Live results</h3>
+        <div class="metrics">
+          <span class="metric"><span>critic loop</span> revise → pass 2</span>
+          <span class="metric"><span>stream</span> 715 chunks</span>
+          <span class="metric"><span>similar</span> 0.906 cosine</span>
+          <span class="metric"><span>chat memory</span> 2-turn ✓</span>
+          <span class="metric"><span>eval</span> 0.64 overall</span>
+          <span class="metric"><span>unit tests</span> 68 (was 39)</span>
+          <span class="metric"><span>mypy</span> 0 errors (was 14)</span>
+          <span class="metric"><span>coverage</span> 66% / 80% target</span>
+        </div>
+        <p style="font-size:14px;color:var(--muted)">Readiness reports Qdrant, Ollama, LLM and Postgres. The KB holds 858 MITRE techniques and 103 OWASP chunks, de-duplicated with deterministic IDs.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="gaps">
+    <h2 id="gaps">Gap register</h2>
+    <p class="lede">What the audit and live tests found. Full detail is in <code>spec/phase4.md</code>.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Gap</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">G1</td><td>Researcher bound tools but never executed them, so reports had no evidence</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G2</td><td>Investigation stream faked one event after running the whole graph</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G3</td><td>Reports never saved; DB pool, migrations and <code>psycopg_pool</code> missing</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G4–5</td><td>Chat ignored session history; tool-call cap never enforced</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G6–7</td><td><code>ragas</code> incompatible with LangChain 1.x; Analytics charted random data</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G8</td><td>PDF upload path traversal, no type or size limit</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G9</td><td>Random point IDs duplicated the corpus on re-ingest (1,922 → 961)</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G16–17</td><td>No completion cap (15-min runaway); judge parsed <code>"false"</code> as true</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G15</td><td>Readiness says LLM ok even when every model returns 402</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G18</td><td>Reports can pair a technique ID with the wrong name</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G19</td><td>No LLM fallback; one provider outage stops every feature</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G20–22</td><td>Tavily untested, ESLint config broken, coverage 66%</td><td><span class="pill open">open</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="road">
+    <h2 id="road">Production roadmap</h2>
+    <div class="grid2">
+      <div class="panel">
+        <div style="display:flex;gap:8px;align-items:center"><h3>Phase 4B · Run it safely</h3><span class="pill planned">next</span></div>
+        <ul>
+          <li><b>LLM gateway:</b> fallback chain, credit-aware readiness probe, token budgets per tenant</li>
+          <li><b>Identity:</b> OIDC + RBAC (analyst / engineer / admin); tenant ID on rows and Qdrant payloads</li>
+          <li><b>State:</b> Redis for sessions, ingest jobs and rate limits; today all three are lost on restart</li>
+          <li><b>Workers:</b> Arq or Celery for ingestion and long investigations</li>
+          <li><b>Observability:</b> Langfuse traces (keys already in env), OpenTelemetry, audit log</li>
+          <li><b>Guardrails:</b> classifier-based injection detection; technique-ID validation against MITRE</li>
+          <li><b>CI/CD:</b> ruff, mypy, pytest ≥80%, web build, Trivy, Playwright on the compose stack</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div style="display:flex;gap:8px;align-items:center"><h3>Phase 4C · SOC value</h3><span class="pill planned">after 4B</span></div>
+        <ul>
+          <li><b>IOC enrichment:</b> VirusTotal, AbuseIPDB, OTX, GreyNoise, WHOIS. IP, hash and domain cases have no real data source today</li>
+          <li><b>Scheduled feeds:</b> CISA KEV daily, NVD deltas, MITRE quarterly, STIX/TAXII</li>
+          <li><b>Hybrid retrieval:</b> BM25 + dense + rerank, exact match on <code>T1059.001</code>-style IDs</li>
+          <li><b>Export:</b> STIX 2.1 bundle, PDF, Jira / ServiceNow tickets, Slack alerts</li>
+          <li><b>SIEM hook:</b> Splunk / Sentinel alert triggers an investigation automatically</li>
+          <li><b>Feedback loop:</b> analyst edits critic gaps; 👍/👎 feeds a golden eval set in CI</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>

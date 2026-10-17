@@ -1,9 +1,11 @@
+import re
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
 from app.api.deps import get_store
+from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.models.schemas import IngestAccepted, IngestJob, IngestStats
 from app.rag.embedder import get_embedder
@@ -15,6 +17,16 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 _jobs: dict[str, IngestJob] = {}
 DATA_DIR = Path("data/sources")
+_DOC_TYPE_RE = re.compile(r"^[a-z0-9_]{1,32}$")
+_UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _safe_pdf_name(filename: str | None) -> str:
+    """Basename only, no traversal, restricted charset, must end in .pdf."""
+    name = _UNSAFE_CHARS.sub("_", Path(filename or "upload.pdf").name).lstrip(".") or "upload.pdf"
+    if not name.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only .pdf files are accepted")
+    return name
 
 
 async def _run_pdf(job_id: str, path: str, doc_type: str, store: QdrantStore) -> None:
@@ -63,12 +75,22 @@ async def ingest_pdf_route(
     doc_type: str = Form(default="custom", description="Label stored alongside each chunk, e.g. 'custom', 'threat_report'"),
     store: QdrantStore = Depends(get_store),
 ) -> IngestAccepted:
+    if not _DOC_TYPE_RE.match(doc_type):
+        raise HTTPException(status_code=400, detail="doc_type must match ^[a-z0-9_]{1,32}$")
+    name = _safe_pdf_name(file.filename)
+    max_bytes = get_settings().max_upload_mb * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail=f"File exceeds {get_settings().max_upload_mb} MB")
+    if not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="File is not a valid PDF")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    dest = DATA_DIR / (file.filename or "upload.pdf")
-    dest.write_bytes(await file.read())
+    dest = DATA_DIR / name
+    dest.write_bytes(data)
     job_id = str(uuid.uuid4())
+    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
     bg.add_task(_run_pdf, job_id, str(dest), doc_type, store)
-    return IngestAccepted(job_id=job_id, filename=file.filename or "")
+    return IngestAccepted(job_id=job_id, filename=name)
 
 
 @router.post(
@@ -118,9 +140,9 @@ async def get_status(job_id: str) -> IngestJob:
     description="Returns the total vector count and per-document-type breakdown in the collection.",
 )
 async def get_stats(store: QdrantStore = Depends(get_store)) -> IngestStats:
-    info = await store._client.get_collection(store.collection)
-    return IngestStats(
-        collection=store.collection,
-        total_vectors=info.points_count or 0,
-        doc_type_counts={},
-    )
+    try:
+        counts = await store.count_by_doc_type()
+    except Exception as exc:  # facet unsupported on old Qdrant servers
+        log.warning("facet_failed", error=str(exc))
+        counts = {}
+    return IngestStats(collection=store.collection, total_vectors=await store.total(), doc_type_counts=counts)

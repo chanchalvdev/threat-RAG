@@ -1,9 +1,11 @@
+from typing import Literal
 from collections.abc import AsyncIterator
 
 from langchain_openai import ChatOpenAI
 from qdrant_client.models import ScoredPoint
 
 from app.core.config import get_settings
+from app.core.llm import get_llm
 from app.core.logging import get_logger
 from app.models.schemas import QueryRequest, RAGResponse, SourceDoc
 from app.rag.embedder import BaseEmbedder
@@ -15,16 +17,10 @@ log = get_logger(__name__)
 
 
 def _build_llm() -> ChatOpenAI:
-    s = get_settings()
-    return ChatOpenAI(
-        model=s.llm_model,
-        openai_api_key=s.kimchi_api_key,  # type: ignore[arg-type]
-        openai_api_base=s.kimchi_base_url,
-        streaming=True,
-    )
+    return get_llm(streaming=True)
 
 
-def _point_to_source(p: ScoredPoint) -> SourceDoc:
+def point_to_source(p: ScoredPoint) -> SourceDoc:
     payload = p.payload or {}
     return SourceDoc(
         text=payload.get("text", ""),
@@ -50,9 +46,9 @@ class ThreatRAGChain:
         s = get_settings()
         vector = await self._embedder.embed(req.question)
         hits = await self._store.search(vector, k=req.k or s.retrieval_k, doc_types=req.doc_types)
-        sources = [_point_to_source(h) for h in hits]
+        sources = [point_to_source(h) for h in hits]
 
-        confidence = "low" if len(sources) < 2 else "high"
+        confidence: Literal["high", "low"] = "low" if len(sources) < 2 else "high"
         context = _format_context(sources)
         prompt = RAG_PROMPT.format_messages(context=context, question=req.question)
 
@@ -72,7 +68,7 @@ class ThreatRAGChain:
         s = get_settings()
         vector = await self._embedder.embed(req.question)
         hits = await self._store.search(vector, k=req.k or s.retrieval_k, doc_types=req.doc_types)
-        sources = [_point_to_source(h) for h in hits]
+        sources = [point_to_source(h) for h in hits]
 
         yield ("__sources__", sources)
 

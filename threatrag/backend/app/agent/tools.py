@@ -21,7 +21,7 @@ class RAGSearchInput(BaseModel):
     doc_types: list[str] | None = Field(default=None, description="Optional filter: mitre_attack, owasp_llm, custom")
 
 
-class ThreatRAGSearchTool(BaseTool):
+class ThreatRAGSearchTool(BaseTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
     name: str = "threat_rag_search"
     description: str = (
         "Search the internal security knowledge base (MITRE ATT&CK, OWASP LLM Top 10, threat intel). "
@@ -53,7 +53,7 @@ class CVEInput(BaseModel):
     cve_id: str = Field(..., description="CVE ID in format CVE-YYYY-NNNNN")
 
 
-class NVDCVETool(BaseTool):
+class NVDCVETool(BaseTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
     name: str = "nvd_cve_lookup"
     description: str = "Look up CVE details from the NVD database. Use when a specific CVE ID is mentioned."
     args_schema: Type[BaseModel] = CVEInput
@@ -108,7 +108,7 @@ class WebSearchInput(BaseModel):
     query: str = Field(..., description="Search query for web threat intelligence")
 
 
-class TavilySearchTool(BaseTool):
+class TavilySearchTool(BaseTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
     name: str = "web_search"
     description: str = (
         "Search the web for current threat intelligence, recent security news, "

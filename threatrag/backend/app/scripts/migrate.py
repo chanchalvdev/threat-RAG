@@ -16,7 +16,7 @@ async def run_migrations() -> None:
     async with await psycopg.AsyncConnection.connect(s.database_url) as conn:
         for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
             sql = sql_file.read_text()
-            await conn.execute(sql)
+            await conn.execute(sql.encode())
             log.info("migration_applied", file=sql_file.name)
     log.info("migrations_complete")
 

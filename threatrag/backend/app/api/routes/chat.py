@@ -1,18 +1,22 @@
+import re
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.session import session_manager
+from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.rag.sanitiser import is_injection
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
+_LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=2, max_length=4000)
     session_id: str | None = None
 
     model_config = ConfigDict(
@@ -94,6 +98,9 @@ class SuggestionsResponse(BaseModel):
     },
 )
 async def chat_stream(req: ChatRequest) -> StreamingResponse:
+    if is_injection(req.question):
+        log.warning("injection_detected", route="chat", question=req.question[:100])
+        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
     session_id = req.session_id or str(uuid.uuid4())
     agent = await session_manager.get_or_create(session_id)
 
@@ -133,18 +140,11 @@ async def clear_history(session_id: str) -> dict[str, str]:
     description="Given the last Q&A exchange, asks the LLM for 3 relevant follow-up security questions.",
 )
 async def get_suggestions(req: SuggestionRequest) -> dict[str, list[str]]:
-    from langchain_openai import ChatOpenAI
-    from app.core.config import get_settings
-    s = get_settings()
-    llm = ChatOpenAI(
-        model=s.llm_model,
-        openai_api_key=s.kimchi_api_key,  # type: ignore[arg-type]
-        openai_api_base=s.kimchi_base_url,
-    )
+    llm = get_llm(temperature=0.5)
     prompt = (
         f"Given this Q&A exchange, suggest 3 follow-up security questions (one per line, no numbering):\n"
         f"Q: {req.last_question}\nA: {req.last_answer[:300]}"
     )
     response = await llm.ainvoke(prompt)
-    lines = [ln.strip() for ln in str(response.content).split("\n") if ln.strip()]
+    lines = [_LIST_MARKER.sub("", ln).strip() for ln in str(response.content).split("\n") if ln.strip()]
     return {"suggestions": lines[:3]}

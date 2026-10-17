@@ -10,7 +10,6 @@ from qdrant_client.models import (
     PayloadSchemaType,
 )
 
-from app.core.config import get_settings
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -67,7 +66,10 @@ class QdrantStore:
         )
         return result.points
 
+    async def total(self) -> int:
+        info = await self._client.get_collection(self.collection)
+        return info.points_count or 0
+
     async def count_by_doc_type(self) -> dict[str, int]:
-        settings = get_settings()
-        info = await self._client.get_collection(settings.qdrant_collection)
-        return {"total": info.points_count or 0}
+        result = await self._client.facet(collection_name=self.collection, key="doc_type", limit=50, exact=True)
+        return {str(hit.value): hit.count for hit in result.hits}

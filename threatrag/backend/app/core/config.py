@@ -14,9 +14,18 @@ class Settings(BaseSettings):
 
     # LLM — Kimchi (OpenAI-compatible)
     kimchi_api_key: str = ""
-    kimchi_base_url: str = "https://api.kimchiinference.com/v1"
+    kimchi_base_url: str = "https://llm.kimchi.dev/openai/v1"
     llm_provider: Literal["kimchi", "openai"] = "kimchi"
-    llm_model: str = "kimi-k2-5"
+    llm_model: str = "kimi-k2.6"
+    llm_timeout_s: float = 120.0
+    llm_max_tokens: int = 4096  # hard cap on completion length (guards against runaway generation)
+
+    # API surface
+    cors_origins: list[str] = [
+        "http://localhost:5173", "http://localhost:5174", "http://localhost:3000",
+    ]
+    api_key: str = ""  # when set, /api/v1/* requires header X-API-Key
+    max_upload_mb: int = 25
 
     # Vector Store
     qdrant_url: str = "http://localhost:6333"
