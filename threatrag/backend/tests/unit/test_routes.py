@@ -1,6 +1,6 @@
 """Unit tests for FastAPI route handlers."""
 import os
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -102,8 +102,10 @@ async def test_query_stream_returns_sse(client):
 
 @pytest.mark.asyncio
 async def test_ingest_mitre_returns_accepted(client):
-    async with client as c:
-        r = await c.post("/api/v1/ingest/mitre")
+    # Stub the background job so the test never embeds the real corpus via Ollama
+    with patch("app.api.routes.ingest._run_mitre", AsyncMock()):
+        async with client as c:
+            r = await c.post("/api/v1/ingest/mitre")
     assert r.status_code == 202
     assert r.json()["status"] == "accepted"
     assert "job_id" in r.json()

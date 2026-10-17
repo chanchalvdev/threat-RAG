@@ -22,3 +22,4 @@ threatrag/backend/data/
 
 # OS
 .DS_Store
+.coverage

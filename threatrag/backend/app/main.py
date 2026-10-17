@@ -3,12 +3,16 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agent.session import session_manager
 from app.api.deps import get_store
 from app.api.routes import chat, evaluate, ingest, investigate, query
+from app.api.security import require_api_key
 from app.core.config import get_settings
+from app.core.llm import fallback_enabled
+from app.db.connection import close_pool, get_pool, is_db_ready, open_pool
 from app.core.logging import configure_logging, get_logger, logging_middleware
 from app.models.schemas import HealthCheck, ReadinessCheck
 
@@ -21,8 +25,14 @@ async def lifespan(app: FastAPI):
     configure_logging()
     store = get_store()
     await store.ensure_collection()
-    log.info("startup_complete", collection=store.collection)
+    if await open_pool():
+        from app.scripts.migrate import run_migrations
+        await run_migrations()
+    session_manager.start()
+    log.info("startup_complete", collection=store.collection, db=is_db_ready())
     yield
+    session_manager.stop()
+    await close_pool()
     log.info("shutdown")
 
 
@@ -46,18 +56,16 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type", "X-API-Key"],
+    expose_headers=["X-Session-ID"],
 )
 app.middleware("http")(logging_middleware)
 
-app.include_router(ingest.router, prefix="/api/v1")
-app.include_router(query.router, prefix="/api/v1")
-app.include_router(chat.router, prefix="/api/v1")
-app.include_router(investigate.router, prefix="/api/v1")
-app.include_router(evaluate.router, prefix="/api/v1")
+for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router):
+    app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key)])
 
 
 @app.get("/health", response_model=HealthCheck, tags=["health"], summary="Liveness check")
@@ -94,7 +102,31 @@ async def health_ready() -> ReadinessCheck:
         except Exception as e:
             checks["ollama"] = f"error: {e}"
 
-    checks["llm"] = "ok"
+        try:
+            r = await client.get(
+                f"{s.kimchi_base_url}/models", headers={"Authorization": f"Bearer {s.kimchi_api_key}"}
+            )
+            checks["llm"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
+        except Exception as e:
+            checks["llm"] = f"error: {e}"
+
+        if fallback_enabled():
+            try:
+                r = await client.get(
+                    f"{s.gemini_base_url}/models", headers={"Authorization": f"Bearer {s.gemini_api_key}"}
+                )
+                checks["llm_fallback"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
+            except Exception as e:
+                checks["llm_fallback"] = f"error: {e}"
+
+    checks["postgres"] = "error: not connected"
+    if is_db_ready():
+        try:
+            async with get_pool().connection() as conn:
+                await conn.execute("SELECT 1")
+            checks["postgres"] = "ok"
+        except Exception as e:
+            checks["postgres"] = f"error: {e}"
 
     status = "ready" if all(v == "ok" for v in checks.values()) else "degraded"
     result = ReadinessCheck(status=status, checks=checks)

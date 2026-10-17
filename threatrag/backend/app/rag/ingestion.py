@@ -18,6 +18,11 @@ OWASP_LLM_URL = "https://owasp.org/www-project-top-10-for-large-language-model-a
 BATCH_SIZE = 100
 
 
+def _point_id(key: str) -> str:
+    """Deterministic ID so re-ingesting the same chunk overwrites instead of duplicating."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
+
+
 def _splitter() -> RecursiveCharacterTextSplitter:
     s = get_settings()
     return RecursiveCharacterTextSplitter(
@@ -43,11 +48,11 @@ async def ingest_pdf(
     chunks = _splitter().split_documents(pages)
     points: list[PointStruct] = []
 
-    for idx, chunk in enumerate(chunks):
-        vector = await embedder.embed(chunk.page_content)
+    vectors = await embedder.embed_batch([c.page_content for c in chunks])
+    for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
         points.append(
             PointStruct(
-                id=str(uuid.uuid4()),
+                id=_point_id(f"{Path(path).name}:{doc_type}:{idx}"),
                 vector=vector,
                 payload={
                     "text": chunk.page_content,
@@ -95,11 +100,10 @@ async def ingest_mitre_attack(
             f"Platforms: {platforms}\n"
             f"Description: {desc}"
         )
-        vector = await embedder.embed(text)
         points.append(
             PointStruct(
-                id=str(uuid.uuid4()),
-                vector=vector,
+                id=_point_id(f"mitre:{obj.get('id', ext_id)}"),
+                vector=[],
                 payload={
                     "text": text,
                     "source": source.name,
@@ -113,6 +117,9 @@ async def ingest_mitre_attack(
             )
         )
 
+    vectors = await embedder.embed_batch([str((p.payload or {})["text"]) for p in points])
+    for point, vector in zip(points, vectors):
+        point.vector = vector
     await _upsert_in_batches(points, store)
     log.info("mitre_ingested", total=len(points))
     return len(points)

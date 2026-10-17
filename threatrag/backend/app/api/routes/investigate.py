@@ -1,74 +1,74 @@
-import json
-
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
 
-from app.agent.graph import InvestigationRequest, run_investigation
-from app.core.logging import get_logger
+from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
+from app.db import reports as repo
+from app.db.connection import get_pool, is_db_ready
+from app.services.investigation_service import investigate, investigate_sse
 
-log = get_logger(__name__)
 router = APIRouter(prefix="/investigate", tags=["investigate"])
 
+_SSE_EXAMPLE = (
+    'data: {"type": "node_start", "node": "researcher", "iteration": 1}\n\n'
+    'data: {"type": "tool_call", "node": "researcher", "name": "nvd_cve_lookup", "input": "{\'cve_id\': \'CVE-2021-44228\'}"}\n\n'
+    'data: {"type": "node_done", "node": "researcher", "summary": "3 tool calls · 2140 chars"}\n\n'
+    'data: {"type": "node_start", "node": "critic", "iteration": 1}\n\n'
+    'data: {"type": "routing", "from": "critic", "to": "reporter", "reason": "APPROVED"}\n\n'
+    'data: {"type": "report_chunk", "data": "# Threat Intelligence Report: CVE-2021-44228"}\n\n'
+    'data: {"type": "done", "ioc": "CVE-2021-44228", "report_id": "6c1e…", "similar": []}\n\n'
+)
 
-class InvestigationSaveResponse(BaseModel):
-    status: str
-    ioc: str
-    report_length: int
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"status": "saved", "ioc": "CVE-2021-44228", "report_length": 2140}
-        }
-    )
+def _require_db() -> None:
+    if not is_db_ready():
+        raise HTTPException(status_code=503, detail="Report storage unavailable (PostgreSQL not connected)")
 
 
 @router.post(
     "/stream",
     summary="Run a multi-agent investigation, streaming via SSE",
-    description="Runs the Researcher → Critic → Reporter LangGraph loop for an IOC and streams "
-    "`node_start`, `report_chunk`, and `done` events as the report is produced.",
-    responses={
-        200: {
-            "description": "text/event-stream of investigation progress and report chunks",
-            "content": {
-                "text/event-stream": {
-                    "example": (
-                        'data: {"type": "node_start", "node": "researcher", "iteration": 1}\n\n'
-                        'data: {"type": "report_chunk", "data": "# Threat Intelligence Report: CVE-2021-44228\\n'
-                        '## Executive Summary..."}\n\n'
-                        'data: {"type": "done", "ioc": "CVE-2021-44228"}\n\n'
-                    )
-                }
-            },
-        }
-    },
+    description="Runs the Researcher → Critic → Reporter LangGraph loop for an IOC. Streams "
+    "`node_start`, `tool_call`, `node_done`, `routing`, `report_chunk`, then `done` "
+    "(with `report_id` and similar past reports) or `error`.",
+    responses={200: {"content": {"text/event-stream": {"example": _SSE_EXAMPLE}}}},
 )
 async def investigate_stream(req: InvestigationRequest) -> StreamingResponse:
-    async def _stream():
-        yield f"data: {json.dumps({'type': 'node_start', 'node': 'researcher', 'iteration': 1})}\n\n"
-
-        report = await run_investigation(req)
-
-        for chunk in _split_chunks(report.final_report, 200):
-            yield f"data: {json.dumps({'type': 'report_chunk', 'data': chunk})}\n\n"
-
-        yield f"data: {json.dumps({'type': 'done', 'ioc': req.ioc})}\n\n"
-
-    return StreamingResponse(_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        investigate_sse(req),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post(
     "/save",
-    response_model=InvestigationSaveResponse,
-    summary="Run an investigation synchronously and persist the report",
-    description="Same investigation as POST /investigate/stream, but runs to completion "
-    "and returns a summary instead of streaming.",
+    response_model=InvestigationReport,
+    summary="Run an investigation to completion and persist the report",
 )
-async def save_investigation(req: InvestigationRequest) -> dict:
-    report = await run_investigation(req)
-    return {"status": "saved", "ioc": report.ioc, "report_length": len(report.final_report)}
+async def save_investigation(req: InvestigationRequest) -> InvestigationReport:
+    return await investigate(req)
 
 
-def _split_chunks(text: str, size: int) -> list[str]:
-    return [text[i : i + size] for i in range(0, len(text), size)]
+@router.get("/reports", response_model=list[ReportSummary], summary="List recent investigation reports")
+async def list_reports(limit: int = Query(default=20, ge=1, le=100)) -> list[ReportSummary]:
+    _require_db()
+    async with get_pool().connection() as conn:
+        return await repo.list_reports(limit, conn)
+
+
+@router.get(
+    "/reports/{report_id}",
+    response_model=InvestigationReport,
+    summary="Fetch a saved investigation report",
+    responses={404: {"content": {"application/json": {"example": {"detail": "Report not found"}}}}},
+)
+async def get_report(report_id: str) -> InvestigationReport:
+    _require_db()
+    async with get_pool().connection() as conn:
+        try:
+            report = await repo.get_report(report_id, conn)
+        except Exception:  # malformed UUID
+            report = None
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return report

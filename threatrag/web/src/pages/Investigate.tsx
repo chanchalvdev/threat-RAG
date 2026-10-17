@@ -1,83 +1,28 @@
-import { Fragment, useState } from 'react'
-import { Search, Loader2, CheckCircle2, Circle, ArrowRight, AlertTriangle, FlaskConical, Gavel, FileText } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Search, Loader2, CheckCircle2, Circle, ArrowRight, AlertTriangle, FlaskConical, Gavel, FileText, RotateCcw } from 'lucide-react'
 import { cn } from '../lib/cn'
+import { listReports } from '../lib/api'
+import { useInvestigation, type IOCType, type NodeId } from '../lib/useInvestigation'
 import ReportViewer from '../components/ReportViewer'
+import SimilarReports from '../components/SimilarReports'
 
-type IOCType = 'ip' | 'hash' | 'domain' | 'cve' | 'technique'
-type NodeStatus = 'idle' | 'active' | 'done'
-
-interface AgentCard {
-  id: string
-  label: string
-  role: string
-  Icon: typeof FlaskConical
-  status: NodeStatus
-  lastChunk: string
-}
-
-const INITIAL_AGENTS: AgentCard[] = [
-  { id: 'researcher', label: 'Researcher', role: 'Gathers intel from KB, NVD & web', Icon: FlaskConical, status: 'idle', lastChunk: '' },
-  { id: 'critic',     label: 'Critic',     role: 'Challenges findings & fills gaps',  Icon: Gavel,        status: 'idle', lastChunk: '' },
-  { id: 'reporter',   label: 'Reporter',   role: 'Writes the final assessment',       Icon: FileText,     status: 'idle', lastChunk: '' },
+const AGENTS: { id: NodeId; label: string; role: string; Icon: typeof FlaskConical }[] = [
+  { id: 'researcher', label: 'Researcher', role: 'Gathers intel from KB, NVD & web', Icon: FlaskConical },
+  { id: 'critic',     label: 'Critic',     role: 'Challenges findings & fills gaps',  Icon: Gavel },
+  { id: 'reporter',   label: 'Reporter',   role: 'Writes the final assessment',       Icon: FileText },
 ]
 
 export default function Investigate() {
   const [ioc, setIoc] = useState('')
   const [iocType, setIocType] = useState<IOCType>('cve')
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [reportChunks, setReportChunks] = useState<string[]>([])
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [agents, setAgents] = useState<AgentCard[]>(INITIAL_AGENTS)
+  const { nodes, iteration, reportChunks, running, error, result, start } = useInvestigation()
+  const recent = useQuery({ queryKey: ['reports'], queryFn: () => listReports(6), retry: false })
 
-  const setAgentStatus = (id: string, status: NodeStatus, lastChunk = '') =>
-    setAgents(prev => prev.map(a => a.id === id ? { ...a, status, ...(lastChunk ? { lastChunk } : {}) } : a))
+  const { refetch } = recent
+  useEffect(() => { if (result) refetch() }, [result, refetch])
 
-  const investigate = async () => {
-    if (!ioc.trim() || running) return
-    setRunning(true)
-    setError(null)
-    setReportChunks([])
-    setIsStreaming(true)
-    setAgents(INITIAL_AGENTS)
-
-    try {
-      const res = await fetch('/api/v1/investigate/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ioc, ioc_type: iocType }),
-      })
-      if (!res.ok || !res.body) throw new Error(`Investigation failed (HTTP ${res.status})`)
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buf = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += decoder.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.type === 'node_start') setAgentStatus(evt.node, 'active')
-            if (evt.type === 'node_done')  setAgentStatus(evt.node, 'done', evt.summary)
-            if (evt.type === 'node_chunk') setAgentStatus(evt.node, 'active', evt.data)
-            if (evt.type === 'report_chunk') setReportChunks(prev => [...prev, evt.data])
-            if (evt.type === 'done') { setAgentStatus('reporter', 'done'); setIsStreaming(false) }
-          } catch {}
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Investigation failed — is the backend running?')
-      setIsStreaming(false)
-    } finally {
-      setRunning(false)
-    }
-  }
+  const investigate = () => { if (ioc.trim() && !running) start(ioc.trim(), iocType) }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -91,7 +36,7 @@ export default function Investigate() {
         </select>
         <input value={ioc} onChange={e => setIoc(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') investigate() }}
-          placeholder="CVE-2021-44228, T1055, 185.220.x.x…"
+          placeholder="CVE-2021-44228, T1055, 185.220.101.1…"
           className="input-base flex-1 px-4 py-2.5 font-mono" />
         <button onClick={investigate} disabled={running || !ioc.trim()}
           className="btn-primary px-5 py-2.5 flex items-center justify-center gap-2 text-sm shadow-glow">
@@ -108,41 +53,54 @@ export default function Investigate() {
 
       {/* Agent pipeline */}
       <div className="flex flex-col md:flex-row items-stretch gap-2">
-        {agents.map((a, i) => (
-          <Fragment key={a.id}>
-            {i > 0 && (
-              <div className="hidden md:flex items-center shrink-0">
-                <ArrowRight size={16} className={cn(a.status !== 'idle' ? 'text-accent' : 'text-slate-600')} />
-              </div>
-            )}
-            <div className={cn('flex-1 card p-4 transition-all',
-              a.status === 'active' && 'border-accent-dim bg-accent-faint/15 shadow-glow',
-              a.status === 'done' && 'border-emerald-500/40')}>
-              <div className="flex items-center gap-2 mb-1">
-                <a.Icon size={15} className={cn(
-                  a.status === 'active' ? 'text-accent' : a.status === 'done' ? 'text-emerald-400' : 'text-slate-500')} />
-                <span className="font-medium text-sm text-slate-100">{a.label}</span>
-                <span className="ml-auto">
-                  {a.status === 'idle'   && <Circle size={13} className="text-slate-600" />}
-                  {a.status === 'active' && <Loader2 size={13} className="animate-spin text-accent" />}
-                  {a.status === 'done'   && <CheckCircle2 size={13} className="text-emerald-400" />}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 mb-2">{a.role}</p>
-              {a.lastChunk && (
-                <p className="text-xs text-slate-400 line-clamp-3 font-mono">{a.lastChunk.slice(-200)}</p>
+        {AGENTS.map((a, i) => {
+          const n = nodes[a.id]
+          return (
+            <Fragment key={a.id}>
+              {i > 0 && (
+                <div className="hidden md:flex items-center shrink-0">
+                  <ArrowRight size={16} className={cn(n.status !== 'idle' ? 'text-accent' : 'text-slate-600')} />
+                </div>
               )}
-            </div>
-          </Fragment>
-        ))}
+              <div className={cn('flex-1 min-w-0 card p-4 transition-all',
+                n.status === 'active' && 'border-accent-dim bg-accent-faint/15 shadow-glow',
+                n.status === 'done' && 'border-emerald-500/40')}>
+                <div className="flex items-center gap-2 mb-1">
+                  <a.Icon size={15} className={cn(
+                    n.status === 'active' ? 'text-accent' : n.status === 'done' ? 'text-emerald-400' : 'text-slate-500')} />
+                  <span className="font-medium text-sm text-slate-100">{a.label}</span>
+                  {a.id === 'researcher' && iteration > 1 && (
+                    <span className="flex items-center gap-1 text-[10px] text-amber-400"><RotateCcw size={10} /> pass {iteration}</span>
+                  )}
+                  <span className="ml-auto">
+                    {n.status === 'idle'   && <Circle size={13} className="text-slate-600" />}
+                    {n.status === 'active' && <Loader2 size={13} className="animate-spin text-accent" />}
+                    {n.status === 'done'   && <CheckCircle2 size={13} className="text-emerald-400" />}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mb-2">{a.role}</p>
+                {n.detail && <p className="text-xs text-slate-400 line-clamp-3 font-mono break-all">{n.detail.slice(-200)}</p>}
+              </div>
+            </Fragment>
+          )
+        })}
       </div>
 
       {/* Report */}
       {reportChunks.length > 0 && (
         <div className="card p-6 animate-slide-in">
-          <ReportViewer reportChunks={reportChunks} isStreaming={isStreaming} />
+          <ReportViewer reportChunks={reportChunks} isStreaming={running} />
+          {result && (
+            <p className="mt-4 text-[11px] text-slate-500 font-mono">
+              {result.report_id ? `Saved · ${result.report_id}` : 'Not saved (report storage unavailable)'}
+              {` · ${result.iterations} research pass${result.iterations > 1 ? 'es' : ''} · ${result.sources.length} KB sources`}
+            </p>
+          )}
         </div>
       )}
+
+      <SimilarReports title="Similar past investigations" reports={result?.similar ?? []} />
+      {!running && !result && <SimilarReports title="Recent investigations" reports={recent.data ?? []} />}
     </div>
   )
 }

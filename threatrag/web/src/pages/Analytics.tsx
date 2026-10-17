@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Loader2, AlertTriangle } from 'lucide-react'
-import axios from 'axios'
 import { cn } from '../lib/cn'
+import { getEvaluationHistory, runEvaluation } from '../lib/api'
 
 const METRICS = [
   { key: 'faithfulness',      label: 'Faithfulness',      color: '#22D3EE' },
@@ -22,18 +23,12 @@ type FormKey = typeof FIELDS[number]['key']
 
 export default function Analytics() {
   const [form, setForm] = useState<Record<FormKey, string>>({ question: '', answer: '', contexts: '', ground_truth: '' })
-  const [result, setResult] = useState<Record<string, number> | null>(null)
+  const [result, setResult] = useState<Record<string, number | null> | null>(null)
   const [evaluating, setEvaluating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Demo trend data — memoized so charts don't jitter on re-render
-  const mockData = useMemo(() => Array.from({ length: 10 }, (_, i) => ({
-    t: i + 1,
-    faithfulness: 0.7 + Math.random() * 0.25,
-    answer_relevancy: 0.65 + Math.random() * 0.3,
-    context_precision: 0.6 + Math.random() * 0.35,
-    context_recall: 0.55 + Math.random() * 0.4,
-  })), [])
+  const history = useQuery({ queryKey: ['eval-history'], queryFn: () => getEvaluationHistory(50) })
+  const trend = (history.data ?? []).map((e, i) => ({ ...e, t: i + 1 }))
 
   const canRun = form.question.trim() && form.answer.trim() && form.contexts.trim()
 
@@ -41,13 +36,14 @@ export default function Analytics() {
     setEvaluating(true)
     setError(null)
     try {
-      const r = await axios.post('/api/v1/evaluate', {
+      const scores = await runEvaluation({
         question: form.question,
         answer: form.answer,
         contexts: form.contexts.split('\n').filter(Boolean),
         ground_truth: form.ground_truth || undefined,
       })
-      setResult(r.data)
+      setResult(scores)
+      history.refetch()
     } catch {
       setError('Evaluation failed — check that the backend and RAGAs pipeline are running.')
     } finally {
@@ -59,20 +55,25 @@ export default function Analytics() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <section>
         <h2 className="text-base font-semibold text-slate-100 mb-1">Quality trends</h2>
-        <p className="text-xs text-slate-500 mb-4">RAGAs metrics over recent evaluations · green line = target (0.8), yellow = floor (0.5)</p>
+        <p className="text-xs text-slate-500 mb-4">RAGAs metrics over the last {trend.length} evaluations · green line = target (0.8), yellow = floor (0.5)</p>
+        {trend.length === 0 && (
+          <p className="card p-4 text-sm text-slate-400 mb-4">
+            {history.isLoading ? 'Loading…' : 'No evaluations recorded yet — run one below to start the trend.'}
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {METRICS.map(m => (
             <div key={m.key} className="card p-4">
               <p className="text-sm font-medium text-slate-300 mb-3">{m.label}</p>
               <ResponsiveContainer width="100%" height={120}>
-                <LineChart data={mockData}>
+                <LineChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#18233B" />
                   <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#697894' }} stroke="#22304F" />
                   <YAxis domain={[0, 1]} tick={{ fontSize: 10, fill: '#697894' }} stroke="#22304F" />
                   <Tooltip contentStyle={{ background: '#111A2C', border: '1px solid #1D2A45', borderRadius: 8, fontSize: 11 }} />
                   <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.5} />
                   <ReferenceLine y={0.5} stroke="#eab308" strokeDasharray="4 4" strokeOpacity={0.5} />
-                  <Line type="monotone" dataKey={m.key} stroke={m.color} dot={false} strokeWidth={2} />
+                  <Line type="monotone" dataKey={m.key} stroke={m.color} dot={trend.length < 3} strokeWidth={2} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -108,7 +109,7 @@ export default function Analytics() {
 
         {result && (
           <div className="bg-surface-900 border border-line rounded-lg p-4 space-y-2.5 animate-slide-in">
-            {Object.entries(result).filter(([, v]) => typeof v === 'number').map(([k, v]) => (
+            {Object.entries(result).filter((e): e is [string, number] => typeof e[1] === 'number').map(([k, v]) => (
               <div key={k} className="flex items-center gap-3">
                 <span className="text-xs text-slate-400 w-40 capitalize">{k.replace(/_/g, ' ')}</span>
                 <div className="flex-1 h-2 bg-surface-600 rounded-full overflow-hidden">
