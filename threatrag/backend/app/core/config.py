@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 120.0
     llm_max_tokens: int = 4096  # hard cap on completion length (guards against runaway generation)
 
+    # LLM fallback — Google Gemini via its OpenAI-compatible endpoint (enabled when key is set)
+    gemini_api_key: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    gemini_model: str = "gemini-2.5-flash"
+
     # API surface
     cors_origins: list[str] = [
         "http://localhost:5173", "http://localhost:5174", "http://localhost:3000",

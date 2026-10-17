@@ -89,11 +89,11 @@ must be re-checked on Kimchi.
 ### Found during live testing
 | # | Finding | Status |
 |---|---|---|
-| G15 | `/health/ready` reports `llm: ok` via `/models` even when every model returns 402 | open → probe a 1-token completion, cache 60 s |
+| G15 | `/health/ready` reports `llm: ok` via `/models` even when every model returns 402 | open (readiness now also reports `llm_fallback`) → probe a 1-token completion, cache 60 s |
 | G16 | No completion cap → small model generated for 15+ min on one call | **fixed**: `LLM_MAX_TOKENS` (default 4096) |
 | G17 | Judge returned bare `["true","false"]`; `bool("false")` is True | **fixed**: tolerant parser + `_truthy` |
 | G18 | Reporter can emit mismatched technique ID/name (e.g. T1021.006 "Command and Scripting Interpreter") | open → validate IDs against ingested MITRE payloads before publish |
-| G19 | No LLM fallback — a single provider outage stops everything | open → fallback chain (Kimchi → secondary → local) |
+| G19 | No LLM fallback — a single provider outage stops everything | **fixed**: Gemini fallback (`app/core/llm.py`, set `GEMINI_API_KEY`); falls back on provider/connection errors, never after tokens streamed, never on 400/422 |
 | G20 | `psycopg_pool` was never installed; `tavily-python` still not installed | pool **fixed**; Tavily path untested |
 | G21 | Web ESLint config broken (ESLint 9 needs flat config) | open |
 | G22 | Unit coverage 66% (< 80% target); DB/service paths only covered live | open → integration tests on compose stack |

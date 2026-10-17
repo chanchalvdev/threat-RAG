@@ -11,6 +11,7 @@ from app.api.deps import get_store
 from app.api.routes import chat, evaluate, ingest, investigate, query
 from app.api.security import require_api_key
 from app.core.config import get_settings
+from app.core.llm import fallback_enabled
 from app.db.connection import close_pool, get_pool, is_db_ready, open_pool
 from app.core.logging import configure_logging, get_logger, logging_middleware
 from app.models.schemas import HealthCheck, ReadinessCheck
@@ -108,6 +109,15 @@ async def health_ready() -> ReadinessCheck:
             checks["llm"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
         except Exception as e:
             checks["llm"] = f"error: {e}"
+
+        if fallback_enabled():
+            try:
+                r = await client.get(
+                    f"{s.gemini_base_url}/models", headers={"Authorization": f"Bearer {s.gemini_api_key}"}
+                )
+                checks["llm_fallback"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
+            except Exception as e:
+                checks["llm_fallback"] = f"error: {e}"
 
     checks["postgres"] = "error: not connected"
     if is_db_ready():
