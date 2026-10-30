@@ -103,6 +103,7 @@ async def ingest_pdf_route(
 async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     job_id = str(uuid.uuid4())
+    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
     bg.add_task(_run_mitre, job_id, store)
     return IngestAccepted(job_id=job_id)
 
@@ -116,6 +117,7 @@ async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(g
 )
 async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
     job_id = str(uuid.uuid4())
+    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
     bg.add_task(_run_owasp, job_id, store)
     return IngestAccepted(job_id=job_id)
 

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: threatrag/backend
+    env:
+      KIMCHI_API_KEY: test-key-for-unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            threatrag/backend/requirements.txt
+            threatrag/backend/requirements-dev.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: ruff check app/
+      - run: mypy app/
+      - run: pytest tests/unit --cov=app --cov-fail-under=80
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: threatrag/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: threatrag/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t threatrag-backend:ci threatrag/backend
+      - run: docker build -t threatrag-web:ci threatrag/web
+      - name: Trivy scan (backend)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.0
+          image --exit-code 1 --severity CRITICAL --ignore-unfixed threatrag-backend:ci

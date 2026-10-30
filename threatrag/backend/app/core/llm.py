@@ -81,11 +81,15 @@ def _client(s: Settings, *, model: str, key: str, base_url: str, streaming: bool
 
 
 def fallback_enabled() -> bool:
-    return bool(get_settings().gemini_api_key)
+    s = get_settings()
+    return bool(s.gemini_api_key and s.kimchi_api_key)
 
 
 def get_llm(streaming: bool = False, temperature: float = 0.1) -> ChatOpenAI:
     s = get_settings()
+    if not s.kimchi_api_key and s.gemini_api_key:  # Kimchi not configured: Gemini is the sole provider
+        return ChatOpenAI(**_client(s, model=s.gemini_model, key=s.gemini_api_key, base_url=s.gemini_base_url,
+                                    streaming=streaming, temperature=temperature))
     primary = _client(s, model=s.llm_model, key=s.kimchi_api_key, base_url=s.kimchi_base_url,
                       streaming=streaming, temperature=temperature)
     if not fallback_enabled():

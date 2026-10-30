@@ -1,8 +1,5 @@
-import time
 from contextlib import asynccontextmanager
-from typing import Any
 
-import httpx
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,13 +8,13 @@ from app.api.deps import get_store
 from app.api.routes import chat, evaluate, ingest, investigate, query
 from app.api.security import require_api_key
 from app.core.config import get_settings
-from app.core.llm import fallback_enabled
-from app.db.connection import close_pool, get_pool, is_db_ready, open_pool
+from app.db.connection import close_pool, is_db_ready, open_pool
 from app.core.logging import configure_logging, get_logger, logging_middleware
 from app.models.schemas import HealthCheck, ReadinessCheck
+from app.rag.embedder import embedding_tag
+from app.services.readiness import check_readiness
 
 log = get_logger(__name__)
-_ready_cache: dict[str, Any] = {"data": None, "expires": 0}
 
 
 @asynccontextmanager
@@ -25,6 +22,7 @@ async def lifespan(app: FastAPI):
     configure_logging()
     store = get_store()
     await store.ensure_collection()
+    await store.assert_embedding(embedding_tag())
     if await open_pool():
         from app.scripts.migrate import run_migrations
         await run_migrations()
@@ -78,57 +76,7 @@ async def health() -> HealthCheck:
     response_model=ReadinessCheck,
     tags=["health"],
     summary="Readiness check",
-    description="Verifies Qdrant, Ollama, and the LLM are reachable. Cached for 30s.",
+    description="Verifies Qdrant, Ollama, and the LLM are reachable, and that the LLM can complete. Cached for 60s.",
 )
 async def health_ready() -> ReadinessCheck:
-    now = time.time()
-    if _ready_cache["data"] and now < _ready_cache["expires"]:
-        return _ready_cache["data"]
-
-    s = get_settings()
-    checks: dict[str, str] = {}
-
-    async with httpx.AsyncClient(timeout=3) as client:
-        try:
-            await client.get(f"{s.qdrant_url}/collections/{s.qdrant_collection}")
-            checks["qdrant"] = "ok"
-        except Exception as e:
-            checks["qdrant"] = f"error: {e}"
-
-        try:
-            r = await client.get(f"{s.ollama_url}/api/tags")
-            models = [m["name"] for m in r.json().get("models", [])]
-            checks["ollama"] = "ok" if any(s.embedding_model in m for m in models) else "model_not_pulled"
-        except Exception as e:
-            checks["ollama"] = f"error: {e}"
-
-        try:
-            r = await client.get(
-                f"{s.kimchi_base_url}/models", headers={"Authorization": f"Bearer {s.kimchi_api_key}"}
-            )
-            checks["llm"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
-        except Exception as e:
-            checks["llm"] = f"error: {e}"
-
-        if fallback_enabled():
-            try:
-                r = await client.get(
-                    f"{s.gemini_base_url}/models", headers={"Authorization": f"Bearer {s.gemini_api_key}"}
-                )
-                checks["llm_fallback"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
-            except Exception as e:
-                checks["llm_fallback"] = f"error: {e}"
-
-    checks["postgres"] = "error: not connected"
-    if is_db_ready():
-        try:
-            async with get_pool().connection() as conn:
-                await conn.execute("SELECT 1")
-            checks["postgres"] = "ok"
-        except Exception as e:
-            checks["postgres"] = f"error: {e}"
-
-    status = "ready" if all(v == "ok" for v in checks.values()) else "degraded"
-    result = ReadinessCheck(status=status, checks=checks)
-    _ready_cache.update({"data": result, "expires": now + 30})
-    return result
+    return await check_readiness()

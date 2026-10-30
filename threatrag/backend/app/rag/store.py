@@ -13,6 +13,11 @@ from qdrant_client.models import (
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
+LEGACY_EMBEDDING_TAG = "ollama:nomic-embed-text"  # points ingested before tagging existed
+
+
+class EmbeddingMismatchError(RuntimeError):
+    """The collection holds vectors from a different embedder than the one configured."""
 
 
 class QdrantStore:
@@ -39,6 +44,35 @@ class QdrantStore:
                     field_schema=PayloadSchemaType.KEYWORD,
                 )
             log.info("collection_created", name=self.collection)
+
+    async def assert_embedding(self, tag: str) -> None:
+        """Refuse to mix vector spaces: same dimension does not mean comparable vectors."""
+        points, _ = await self._client.scroll(collection_name=self.collection, limit=1, with_payload=True)
+        if not points:
+            return
+        found = (points[0].payload or {}).get("embedding_model", LEGACY_EMBEDDING_TAG)
+        if found != tag:
+            raise EmbeddingMismatchError(
+                f"Collection '{self.collection}' was built with {found}, but {tag} is configured. "
+                "Set QDRANT_COLLECTION to a new name and re-ingest."
+            )
+
+    async def technique_names(self) -> dict[str, str]:
+        """Map of MITRE technique ID -> canonical name from the ingested corpus."""
+        names: dict[str, str] = {}
+        doc_filter = Filter(must=[FieldCondition(key="doc_type", match=MatchValue(value="mitre_attack"))])
+        offset = None
+        while True:
+            points, offset = await self._client.scroll(
+                collection_name=self.collection, scroll_filter=doc_filter, limit=500,
+                with_payload=["technique_id", "name"], offset=offset,
+            )
+            for p in points:
+                payload = p.payload or {}
+                if payload.get("technique_id"):
+                    names[payload["technique_id"]] = payload.get("name", "")
+            if offset is None:
+                return names
 
     async def upsert(self, points: list[PointStruct]) -> None:
         await self._client.upsert(collection_name=self.collection, points=points)

@@ -14,7 +14,8 @@ log = get_logger(__name__)
 async def main() -> None:
     configure_logging()
     s = get_settings()
-    store = QdrantStore(url=s.qdrant_url, collection=s.qdrant_collection, vector_size=s.embedding_dim)
+    store = QdrantStore(url=s.qdrant_url, collection=s.qdrant_collection, vector_size=s.embedding_dim,
+                        api_key=s.qdrant_api_key)
     await store.ensure_collection()
     embedder = get_embedder(s)
 

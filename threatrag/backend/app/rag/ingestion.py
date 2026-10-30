@@ -9,7 +9,7 @@ from qdrant_client.models import PointStruct
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.rag.embedder import BaseEmbedder
+from app.rag.embedder import BaseEmbedder, embedding_tag
 from app.rag.store import QdrantStore
 
 log = get_logger(__name__)
@@ -43,6 +43,7 @@ async def _upsert_in_batches(
 async def ingest_pdf(
     path: str, doc_type: str, store: QdrantStore, embedder: BaseEmbedder
 ) -> int:
+    await store.assert_embedding(embedding_tag())
     loader = PyPDFLoader(path)
     pages = loader.load()
     chunks = _splitter().split_documents(pages)
@@ -59,6 +60,7 @@ async def ingest_pdf(
                     "source": Path(path).name,
                     "doc_type": doc_type,
                     "page": chunk.metadata.get("page", 0),
+                    "embedding_model": embedding_tag(),
                     "chunk_index": idx,
                 },
             )
@@ -74,6 +76,7 @@ async def ingest_pdf(
 async def ingest_mitre_attack(
     path: str, store: QdrantStore, embedder: BaseEmbedder
 ) -> int:
+    await store.assert_embedding(embedding_tag())
     source = Path(path)
     if not source.exists():
         log.info("downloading_mitre", url=MITRE_URL)
@@ -112,6 +115,7 @@ async def ingest_mitre_attack(
                     "name": obj.get("name", ""),
                     "tactic": tactic,
                     "platforms": platforms,
+                    "embedding_model": embedding_tag(),
                     "chunk_index": len(points),
                 },
             )

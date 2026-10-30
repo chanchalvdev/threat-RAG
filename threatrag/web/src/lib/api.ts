@@ -141,7 +141,9 @@ export async function streamQuery(
       if (line.startsWith('data: ')) {
         try {
           onEvent(JSON.parse(line.slice(6)) as SSEEvent)
-        } catch {}
+        } catch {
+          // partial or non-JSON SSE frame: skip it, the stream continues
+        }
       }
     }
   }

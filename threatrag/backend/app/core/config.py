@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     qdrant_collection: str = "threat_intel"
 
     # Embeddings
+    embedding_provider: Literal["ollama", "gemini"] = "ollama"
     ollama_url: str = "http://localhost:11434"
     embedding_model: str = "nomic-embed-text"
     embedding_dim: int = 768
