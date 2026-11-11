@@ -41,6 +41,14 @@ documentation to respond to threats. ThreatRAG automates this by:
 - PostgreSQL + pgvector report persistence
 - Full investigation UI with agent visualisation
 
+### Phase 4 — Phase-3 completion and hardening
+- Closed the runtime gaps found in the 2026-10-16 audit ([phase4.md](phase4.md))
+- LLM factory with provider fallback, upload safety, readiness probes, CI
+
+### Phases 5–9 — From demo to defensible system
+- Packaging, offline evaluation, hybrid retrieval, guardrails and telemetry, production shape
+- Plan and status: [phase5-9-plan.md](phase5-9-plan.md)
+
 ## 4. Non-Functional Requirements
 
 | Requirement | Target |
@@ -77,7 +85,7 @@ FastAPI Backend
          │
          ├── Qdrant (vector store)
          ├── Ollama (embeddings, local)
-         ├── Kimchi kimi-k2.6 (LLM)
+         ├── Gemini (primary LLM) → Kimchi (fallback), both OpenAI-compatible
          └── PostgreSQL + pgvector (Phase 3, reports)
 ```
 
@@ -91,16 +99,17 @@ Split logic at natural seams:
 - `ingestion.py` — document loading + chunking only
 - `prompts.py` — prompt templates only
 
-## 8. LLM Provider: Kimchi
-- Model: `kimi-k2-5`
-- API: OpenAI-compatible (`/v1/chat/completions`)
-- Auth: `Authorization: Bearer $KIMCHI_API_KEY`
-- Use `langchain_openai.ChatOpenAI` with `openai_api_base` pointing to Kimchi URL
-- Env var: `KIMCHI_API_KEY`, `KIMCHI_BASE_URL`
+## 8. LLM providers
+- Primary: Google Gemini through its OpenAI-compatible endpoint (`GEMINI_API_KEY`, `GEMINI_MODEL`)
+- Fallback: Kimchi (`KIMCHI_API_KEY`, `KIMCHI_BASE_URL`, `LLM_MODEL`)
+- One construction point: `app/core/llm.py:get_llm`. With one key set, that provider runs alone.
+- Model IDs are configuration, not code: providers retire models, so check `/models` when a call 404s.
 
 ## 9. References
 - Phase 1 detail: [spec/phase1.md](phase1.md)
 - Phase 2 detail: [spec/phase2.md](phase2.md)
 - Phase 3 detail: [spec/phase3.md](phase3.md)
+- Phase 4 detail: [spec/phase4.md](phase4.md)
+- Phases 5–9 plan: [spec/phase5-9-plan.md](phase5-9-plan.md)
 - API contract: [spec/api-schema.md](api-schema.md)
 - Validation plan: [spec/validation-plan.md](validation-plan.md)

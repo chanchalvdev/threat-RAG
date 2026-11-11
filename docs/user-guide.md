@@ -1,7 +1,7 @@
 # ThreatRAG — User Guide
 
 A walkthrough of the four screens in the app: **Chat**, **Knowledge Base**, **Investigate**,
-and **Analytics**. For getting the app running locally, see [start-services.sh](start-services.sh)
+and **Analytics**. For getting the app running locally, see [start-services.sh](../start-services.sh)
 (`./start-services.sh` / `status` / `stop`) — this guide assumes it's already up at
 **http://localhost:5174**.
 
@@ -23,10 +23,6 @@ Investigate have nothing to cite. Do this once per fresh environment:
 5. The right-hand panel shows a live total vector count and a bar chart of vectors per
    source. It refreshes automatically every 5 seconds, so you'll see the count climb as
    ingestion progresses.
-
-> **Note:** the "vectors by source" chart depends on the backend correctly tagging each
-> vector's `doc_type` — if it's showing empty even after ingesting, that's a backend
-> reporting quirk, not a sign that ingestion failed. Check the total count instead.
 
 ---
 

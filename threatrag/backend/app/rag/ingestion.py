@@ -80,6 +80,7 @@ async def ingest_mitre_attack(
     source = Path(path)
     if not source.exists():
         log.info("downloading_mitre", url=MITRE_URL)
+        source.parent.mkdir(parents=True, exist_ok=True)
         async with httpx.AsyncClient(timeout=60) as client:
             r = await client.get(MITRE_URL)
             r.raise_for_status()

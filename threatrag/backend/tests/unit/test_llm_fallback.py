@@ -43,7 +43,7 @@ def test_should_fallback_on_connection_error_but_not_value_error():
 
 def test_single_key_runs_that_provider_alone():
     only_gemini = Settings(_env_file=None, kimchi_api_key="", gemini_api_key="g")
-    for settings, model in ((_settings(""), "kimi-k2.6"), (only_gemini, "gemini-2.5-flash")):
+    for settings, model in ((_settings(""), "kimi-k2.6"), (only_gemini, "gemini-3.5-flash-lite")):
         with patch("app.core.llm.get_settings", return_value=settings):
             client = llm_mod.get_llm()
             assert type(client).__name__ == "ChatOpenAI" and client.model_name == model
@@ -54,7 +54,7 @@ def test_both_keys_make_gemini_primary_and_kimchi_fallback():
     with patch("app.core.llm.get_settings", return_value=_settings()):
         model = llm_mod.get_llm()
     assert isinstance(model, llm_mod.FallbackChatOpenAI)
-    assert model.model_name == "gemini-2.5-flash"
+    assert model.model_name == "gemini-3.5-flash-lite"
     assert model.fallback is not None and model.fallback.model_name == "kimi-k2.6"
 
 

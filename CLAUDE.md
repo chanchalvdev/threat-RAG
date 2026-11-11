@@ -2,8 +2,9 @@
 
 ## Project Overview
 ThreatRAG is a cybersecurity RAG (Retrieval-Augmented Generation) pipeline that ingests
-MITRE ATT&CK, OWASP Top 10, and CVE data into a vector store, then answers analyst
-questions with cited sources and an agentic investigation workflow.
+MITRE ATT&CK and the OWASP LLM Top 10 into a vector store (CVE data is looked up live
+from NVD, not ingested), then answers analyst questions with cited sources and an agentic
+investigation workflow.
 
 ## Repository Layout
 ```
@@ -18,6 +19,8 @@ threat-RAG/
 │   ├── phase1.md         # Phase 1 detailed spec
 │   ├── phase2.md         # Phase 2 detailed spec
 │   ├── phase3.md         # Phase 3 detailed spec
+│   ├── phase4.md         # Phase 4: Phase-3 completion + hardening
+│   ├── phase5-9-plan.md  # Phases 5–9 plan and status
 │   ├── api-schema.md     # API contract
 │   └── validation-plan.md # test & validation checklist
 └── threatrag/            # Application code
@@ -34,8 +37,8 @@ threat-RAG/
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.13 + FastAPI + Pydantic v2 |
-| RAG | LangChain 0.3 + LCEL |
-| Agents | LangGraph 0.2 (Phase 3) |
+| RAG | LangChain 1.3 |
+| Agents | LangGraph 1.2 |
 | LLM | Gemini primary, Kimchi fallback (both OpenAI-compatible) |
 | Embeddings | Ollama nomic-embed-text (local) |
 | Vector DB | Qdrant |
@@ -43,17 +46,18 @@ threat-RAG/
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | Streaming | SSE (FastAPI StreamingResponse) |
 
-## LLM Configuration (Kimchi)
-- Provider: Kimchi Inference (OpenAI-compatible endpoint)
-- Model: `kimi-k2-5` / `kimi-k2.6`
-- Base URL: `https://api.kimchiinference.com/v1` (check env)
-- Key env var: `KIMCHI_API_KEY`
-- Use `langchain_openai.ChatOpenAI` with `openai_api_base` pointing to Kimchi endpoint
+## LLM Configuration
+- Primary: Gemini via its OpenAI-compatible endpoint — `GEMINI_API_KEY`, `GEMINI_MODEL`
+- Fallback: Kimchi — `KIMCHI_API_KEY`, `KIMCHI_BASE_URL`, `LLM_MODEL`
+- Always build models with `app/core/llm.py:get_llm`; never construct `ChatOpenAI` elsewhere
+- Providers retire model IDs: if a call returns 404, list `/models` and update the env var
 
 ## Development Phases
 - **Phase 1** — RAG Core: ingest MITRE ATT&CK + OWASP, basic Q&A with citations
 - **Phase 2** — Agentic Loop: ReAct agent, NVD CVE tool, web search, SSE chat
-- **Phase 3** — Multi-Agent: LangGraph Researcher→Critic→Reporter, RAGAs eval, pgvector
+- **Phase 3** — Multi-Agent: LangGraph Researcher→Critic→Reporter, LLM-judge eval, pgvector
+- **Phase 4** — Phase-3 completion and hardening (`spec/phase4.md`)
+- **Phases 5–9** — packaging, eval harness, hybrid retrieval, guardrails, production shape (`spec/phase5-9-plan.md`)
 
 ## Code Conventions
 - Each file ≤ 150 lines — split at logical boundaries
@@ -65,14 +69,16 @@ threat-RAG/
 
 ## Environment Variables (backend/.env)
 ```
-KIMCHI_API_KEY=<your-key>
-KIMCHI_BASE_URL=https://api.kimchiinference.com/v1
-LLM_MODEL=kimi-k2-5
+GEMINI_API_KEY=<your-key>
+GEMINI_MODEL=gemini-3.5-flash-lite
+KIMCHI_API_KEY=<optional fallback key>
+KIMCHI_BASE_URL=https://llm.kimchi.dev/openai/v1
+LLM_MODEL=kimi-k2.7
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=threat_intel
 OLLAMA_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
-DATABASE_URL=postgresql://threatrag:threatrag@localhost:5432/threatrag
+DATABASE_URL=postgresql://threatrag:threatrag@localhost:5435/threatrag
 DEBUG=true
 ```
 

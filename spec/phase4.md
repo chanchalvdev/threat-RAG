@@ -99,12 +99,14 @@ must be re-checked on Kimchi.
 | G22 | Unit coverage 66% (< 80% target); DB/service paths only covered live | **fixed**: 83%, enforced in CI; integration tests on the compose stack still to add |
 | G23 | Same-dimension embedders (Ollama vs Gemini) could silently share a collection | **fixed**: points tagged `embedding_model`; startup and ingest raise `EmbeddingMismatchError` |
 | G24 | `/ingest/mitre` and `/ingest/owasp` job IDs returned 404 until the background task started | **fixed**: job registered as `pending` before returning |
-| G25 | `web/node_modules` (16,093 files) is tracked in git despite `.gitignore` | open → `git rm -r --cached threatrag/web/node_modules` |
-| G26 | Any caller can read or clear any chat session by ID | open → bind sessions to the authenticated user (Part B Identity) |
+| G25 | `web/node_modules` (16,093 files) is tracked in git despite `.gitignore` | **fixed** (commit 7671a372); `backend/data/` and `web/dist/` untracked in Phase 5 |
+| G26 | Any caller can read or clear any chat session by ID | open → Phase 9 (F9.3), see `spec/phase5-9-plan.md` |
 
 ---
 
-## Part B — Production hardening (next)
+## Part B — Production hardening
+
+> Superseded by [phase5-9-plan.md](phase5-9-plan.md), which re-scopes this table into Phases 5–9.
 | Area | Work |
 |---|---|
 | Identity | OIDC/JWT (Keycloak/Auth0), RBAC roles: analyst / engineer / admin; tenant_id on every row + Qdrant payload filter |

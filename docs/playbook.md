@@ -1,5 +1,9 @@
 # ThreatRAG — Complete Development Playbook
 
+> **Historical document.** This is the original build playbook from June 2026. The stack table and
+> prompts below describe the plan at that time, not the current code. See the top-level
+> [README](../README.md) and [spec/](../spec/) for what is actually built.
+
 RAG pipeline over MITRE ATT&CK, CVEs, and threat intel with a
 multi-tool agentic layer. Every prompt below is copy-paste ready.
 

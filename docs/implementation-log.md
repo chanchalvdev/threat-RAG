@@ -1,5 +1,6 @@
 # ThreatRAG — Implementation Guide
-Step-by-step record of what was built and how to run it.
+Step-by-step record of the Phase 1–3 build (June–July 2026). Later phases are recorded in
+[spec/phase4.md](../spec/phase4.md) and [spec/phase5-9-plan.md](../spec/phase5-9-plan.md).
 
 ---
 
