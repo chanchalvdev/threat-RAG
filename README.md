@@ -15,7 +15,7 @@ investigation pipeline that turns an indicator (CVE, IP, domain, hash) into a st
 | IOC investigation | LangGraph Researcher → Critic → Reporter with a revision loop and streamed report |
 | Enrichment tools | NVD, CISA KEV, FIRST EPSS, Shodan InternetDB, AbuseIPDB, OTX, abuse.ch, web search |
 | Report memory | Reports stored in PostgreSQL + pgvector; similar past investigations surfaced |
-| Evaluation | LLM-judge metrics (faithfulness, relevancy, context precision/recall) with history |
+| Evaluation | Offline golden-set harness (hit@k, MRR, faithfulness, abstention) plus per-answer LLM-judge scoring with a separate judge model |
 | Resilience | Provider fallback (Gemini → Kimchi) that never switches mid-stream |
 
 ## Quickstart
@@ -60,6 +60,25 @@ React 18 (Vite, Tailwind)  ──SSE/REST──▶  FastAPI
 
 A fuller map with the request flows is in [docs/architecture.html](docs/architecture.html).
 
+## Results
+
+Measured on a 64-question golden set (`threatrag/backend/eval/golden.jsonl`): technique-ID
+lookups, name lookups, behavioural paraphrases, OWASP questions and unanswerable questions.
+Reproduce with `make -C threatrag eval LABEL=mine ANSWERS=20`.
+
+**Baseline — Phase 1 retriever (dense only):**
+
+| Category | n | hit@1 | hit@3 | hit@6 | MRR |
+|---|---|---|---|---|---|
+| id_lookup | 12 | 0.00 | 0.00 | 0.00 | 0.00 |
+| name_lookup | 10 | 0.60 | 1.00 | 1.00 | 0.78 |
+| owasp | 8 | 0.88 | 1.00 | 1.00 | 0.94 |
+| paraphrase | 26 | 0.46 | 0.88 | 1.00 | 0.67 |
+| **overall** | 56 | 0.45 | 0.73 | 0.79 | 0.58 |
+
+Dense embeddings cannot find `T1110.003` by its ID. The generator stays faithful (1.00) by
+refusing, so 25% of answerable questions go unanswered. Fixing that is Phase 7.
+
 ## Design decisions
 
 - **One LLM construction point.** `app/core/llm.py` builds every chat model. The fallback is a
@@ -88,8 +107,8 @@ CI (`.github/workflows/ci.yml`) runs the same gates plus Docker builds and a Tri
 ## Known limits
 
 Tracked with their fixes in [spec/phase5-9-plan.md](spec/phase5-9-plan.md):
-retrieval is dense-only, the prompt-injection filter is a regex list, chat sessions and ingest
-jobs live in process memory, and there is no published benchmark yet.
+retrieval is dense-only, the prompt-injection filter is a regex list, and chat sessions and
+ingest jobs live in process memory.
 
 ## Repository layout
 

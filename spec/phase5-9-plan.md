@@ -7,7 +7,7 @@
 | Phase | Branch | Theme | Status |
 |---|---|---|---|
 | 5 | `feat/phase5-ship-and-show` | Repo packaging, docs, hygiene | **done** 2026-11-11 |
-| 6 | `feat/phase6-eval-harness` | Golden set + offline evaluation | planned |
+| 6 | `feat/phase6-eval-harness` | Golden set + offline evaluation | **done** 2026-11-12 |
 | 7 | `feat/phase7-hybrid-retrieval` | Hybrid search, rerank, abstention, richer corpus | planned |
 | 8 | `feat/phase8-guardrails-observability` | Injection guard, IOC-safe sanitiser, telemetry | planned |
 | 9 | `feat/phase9-production-shape` | Shared state, identity, integration/E2E tests, STIX export | planned |
@@ -65,6 +65,23 @@ no doc names a version or provider order the code does not use.
 
 Acceptance: the golden set validates against the ingested corpus (every expected ID exists);
 the runner reproduces the baseline table from a clean checkout plus a running stack.
+
+### Phase 6 result — baseline (Phase 1 retriever, dense only, 961 points)
+
+| Category | n | hit@1 | hit@3 | hit@6 | MRR |
+|---|---|---|---|---|---|
+| id_lookup | 12 | 0.00 | 0.00 | 0.00 | 0.00 |
+| name_lookup | 10 | 0.60 | 1.00 | 1.00 | 0.78 |
+| owasp | 8 | 0.88 | 1.00 | 1.00 | 0.94 |
+| paraphrase | 26 | 0.46 | 0.88 | 1.00 | 0.67 |
+| **overall** | 56 | 0.45 | 0.73 | 0.79 | 0.58 |
+
+Answers (20 stratified items, generator `gemini-3.5-flash-lite`, judge `gemini-3.1-flash-lite`):
+faithfulness 1.00 · citation rate 1.00 · technique-ID accuracy 0.88 · correct abstention 1.00 ·
+false abstention 0.25.
+
+Reading: "What is T1110.003?" never retrieves T1110.003. The generator stays faithful by refusing,
+which is why a quarter of answerable questions go unanswered. Raw rows: `eval/results/baseline-dense.json`.
 
 ## Phase 7 — Retrieval worth measuring
 

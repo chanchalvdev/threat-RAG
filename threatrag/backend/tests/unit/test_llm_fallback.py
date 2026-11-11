@@ -146,3 +146,16 @@ async def test_astream_does_not_fall_back_after_tokens_were_sent():
             async for c in model.astream([HumanMessage(content="hi")]):
                 got.append(str(c.content))
     assert got == ["par"]  # no duplicated "gem" appended after partial output
+
+
+def test_judge_uses_its_own_model_when_configured():
+    settings = _settings("gem-key")
+    settings.judge_model = "judge-model"
+    with patch.object(llm_mod, "get_settings", return_value=settings):
+        judge = llm_mod.get_judge_llm()
+    assert judge.model_name == "judge-model" and judge.temperature == 0.0
+
+
+def test_judge_falls_back_to_generator_when_unset():
+    with patch.object(llm_mod, "get_settings", return_value=_settings("gem-key")):
+        assert llm_mod.get_judge_llm().model_name == llm_mod.get_llm().model_name

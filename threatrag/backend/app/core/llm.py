@@ -103,3 +103,14 @@ def get_llm(streaming: bool = False, temperature: float = 0.1) -> ChatOpenAI:
     if len(clients) == 1:
         return ChatOpenAI(**clients[0])
     return FallbackChatOpenAI(**clients[0], fallback=ChatOpenAI(**clients[1]))
+
+
+def get_judge_llm() -> ChatOpenAI:
+    """Evaluation judge. Uses JUDGE_MODEL when set; otherwise the generator model at temperature 0."""
+    s = get_settings()
+    if not s.judge_model:
+        return get_llm(temperature=0.0)
+    configured = providers(s)
+    key = s.judge_api_key or (configured[0][1] if configured else "")
+    base = s.judge_base_url or (configured[0][2] if configured else s.kimchi_base_url)
+    return ChatOpenAI(**_client(s, model=s.judge_model, key=key, base_url=base, streaming=False, temperature=0.0))

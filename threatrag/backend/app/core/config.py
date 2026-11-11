@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     gemini_model: str = "gemini-3.5-flash-lite"
 
+    # Evaluation judge: a different model from the generator, so it does not grade its own work.
+    # Key and base URL default to the primary provider's.
+    judge_model: str = ""
+    judge_api_key: str = ""
+    judge_base_url: str = ""
+
     # API surface
     cors_origins: list[str] = [
         "http://localhost:5173", "http://localhost:5174", "http://localhost:3000",

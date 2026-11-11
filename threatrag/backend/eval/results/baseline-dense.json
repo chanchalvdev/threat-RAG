@@ -1,0 +1,1176 @@
+{
+ "label": "baseline-dense",
+ "at": "2026-11-11T20:00:26+00:00",
+ "collection": "threat_intel",
+ "embedding": "ollama:nomic-embed-text",
+ "retrieval": {
+  "k": 6,
+  "overall": {
+   "n": 56,
+   "hit@1": 0.44642857142857145,
+   "hit@3": 0.7321428571428571,
+   "hit@6": 0.7857142857142857,
+   "mrr": 0.5830357142857142
+  },
+  "by_category": {
+   "id_lookup": {
+    "n": 12,
+    "hit@1": 0.0,
+    "hit@3": 0.0,
+    "hit@6": 0.0,
+    "mrr": 0.0
+   },
+   "name_lookup": {
+    "n": 10,
+    "hit@1": 0.6,
+    "hit@3": 1.0,
+    "hit@6": 1.0,
+    "mrr": 0.7833333333333333
+   },
+   "owasp": {
+    "n": 8,
+    "hit@1": 0.875,
+    "hit@3": 1.0,
+    "hit@6": 1.0,
+    "mrr": 0.9375
+   },
+   "paraphrase": {
+    "n": 26,
+    "hit@1": 0.46153846153846156,
+    "hit@3": 0.8846153846153846,
+    "hit@6": 1.0,
+    "mrr": 0.666025641025641
+   }
+  },
+  "top_score": {
+   "answerable": 0.7214885448214285,
+   "unanswerable": 0.49900551
+  },
+  "rows": [
+   {
+    "id": "id01",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.5646565,
+    "retrieved": [
+     "T1130",
+     "T1100",
+     "T1132.002",
+     "T1065",
+     "T1109",
+     "T1119"
+    ]
+   },
+   {
+    "id": "id02",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.63203084,
+    "retrieved": [
+     "T1097",
+     "T1053.001",
+     "T1557",
+     "T1573.002",
+     "T1053.002",
+     "T1105"
+    ]
+   },
+   {
+    "id": "id03",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.65011024,
+    "retrieved": [
+     "T1032",
+     "T1591.003",
+     "T1592.001",
+     "T1595",
+     "T1592.003",
+     "T1557"
+    ]
+   },
+   {
+    "id": "id04",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.60854363,
+    "retrieved": [
+     "T1591.003",
+     "T1592.003",
+     "T1595",
+     "T1591.001",
+     "T1596.003",
+     "T1592.001"
+    ]
+   },
+   {
+    "id": "id05",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.6226126,
+    "retrieved": [
+     "T1571",
+     "T1065",
+     "T1495",
+     "T1499.004",
+     "T1499",
+     "T1059.005"
+    ]
+   },
+   {
+    "id": "id06",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.5792034,
+    "retrieved": [
+     "T1592.003",
+     "T1591.003",
+     "T1542.005",
+     "T1592.001",
+     "T1495",
+     "T1596.003"
+    ]
+   },
+   {
+    "id": "id07",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.5278621,
+    "retrieved": [
+     "T1100",
+     "T1097",
+     "T1171",
+     "T1590",
+     "T1125",
+     "T1654"
+    ]
+   },
+   {
+    "id": "id08",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.63972235,
+    "retrieved": [
+     "T1608",
+     "T1573.002",
+     "T1587",
+     "T1595",
+     "T1027.003",
+     "T1592.003"
+    ]
+   },
+   {
+    "id": "id09",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.5728788,
+    "retrieved": [
+     "T1040",
+     "T1602",
+     "T1007",
+     "T1012",
+     "T1082",
+     "T1065"
+    ]
+   },
+   {
+    "id": "id10",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.6154078,
+    "retrieved": [
+     "T1032",
+     "T1099",
+     "T1071.005",
+     "T1027.003",
+     "T1024",
+     "T1001.002"
+    ]
+   },
+   {
+    "id": "id11",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.5787679,
+    "retrieved": [
+     "T1100",
+     "T1602",
+     "T1592.003",
+     "T1596.003",
+     "T1130",
+     "T1059"
+    ]
+   },
+   {
+    "id": "id12",
+    "category": "id_lookup",
+    "answerable": true,
+    "rank": null,
+    "top_score": 0.6169925,
+    "retrieved": [
+     "T1591.003",
+     "T1592.001",
+     "T1590",
+     "T1596",
+     "T1602",
+     "T1595"
+    ]
+   },
+   {
+    "id": "na01",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.6818857,
+    "retrieved": [
+     "T1558",
+     "T1208",
+     "T1558.003",
+     "T1558.005",
+     "T1550.003",
+     "T1097"
+    ]
+   },
+   {
+    "id": "na02",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.70327187,
+    "retrieved": [
+     "T1558.001",
+     "T1558.002",
+     "T1550.003",
+     "T1097",
+     "T1558",
+     "T1498"
+    ]
+   },
+   {
+    "id": "na03",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.6210526,
+    "retrieved": [
+     "T1003.006",
+     "T1207",
+     "T1173",
+     "T1568.003",
+     "T1071.004",
+     "T1483"
+    ]
+   },
+   {
+    "id": "na04",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.7624323,
+    "retrieved": [
+     "T1075",
+     "T1550.002",
+     "T1097",
+     "T1003.008",
+     "T1550.003",
+     "T1110.002"
+    ]
+   },
+   {
+    "id": "na05",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.8589549,
+    "retrieved": [
+     "T1055",
+     "T1055.002",
+     "T1093",
+     "T1055.001",
+     "T1055.012",
+     "T1055.004"
+    ]
+   },
+   {
+    "id": "na06",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7579119,
+    "retrieved": [
+     "T1197",
+     "T1027.008",
+     "T1203",
+     "T1587.004",
+     "T1053.002",
+     "T1687"
+    ]
+   },
+   {
+    "id": "na07",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.8510864,
+    "retrieved": [
+     "T1483",
+     "T1568.002",
+     "T1568",
+     "T1069.002",
+     "T1207",
+     "T1583.001"
+    ]
+   },
+   {
+    "id": "na08",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.8026443,
+    "retrieved": [
+     "T1088",
+     "T1548.002",
+     "T1531",
+     "T1098",
+     "T1097",
+     "T1078"
+    ]
+   },
+   {
+    "id": "na09",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7980337,
+    "retrieved": [
+     "T1218.011",
+     "T1085",
+     "T1574.001",
+     "T1565.003",
+     "T1218.010",
+     "T1103"
+    ]
+   },
+   {
+    "id": "na10",
+    "category": "name_lookup",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7719765,
+    "retrieved": [
+     "T1105",
+     "T1570",
+     "T1608.002",
+     "T1197",
+     "T1071.002",
+     "T1219.001"
+    ]
+   },
+   {
+    "id": "pa01",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.74242115,
+    "retrieved": [
+     "T1110.001",
+     "T1110",
+     "T1110.003",
+     "T1078.003",
+     "T1201",
+     "T1111"
+    ]
+   },
+   {
+    "id": "pa02",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.78779435,
+    "retrieved": [
+     "T1486",
+     "T1027.013",
+     "T1588.001",
+     "T1608.001",
+     "T1657",
+     "T1027"
+    ]
+   },
+   {
+    "id": "pa03",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.72005045,
+    "retrieved": [
+     "T1003",
+     "T1564.010",
+     "T1003.001",
+     "T1187",
+     "T1556.001",
+     "T1555.004"
+    ]
+   },
+   {
+    "id": "pa04",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.73992544,
+    "retrieved": [
+     "T1490",
+     "T1679",
+     "T1562.001",
+     "T1685",
+     "T1006",
+     "T1486"
+    ]
+   },
+   {
+    "id": "pa05",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.7363184,
+    "retrieved": [
+     "T1193",
+     "T1566.001",
+     "T1204.002",
+     "T1566.002",
+     "T1204",
+     "T1566"
+    ]
+   },
+   {
+    "id": "pa06",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 4,
+    "top_score": 0.6878689,
+    "retrieved": [
+     "T1208",
+     "T1056.003",
+     "T1078",
+     "T1558.003",
+     "T1078.003",
+     "T1078.002"
+    ]
+   },
+   {
+    "id": "pa07",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7304895,
+    "retrieved": [
+     "T1547.001",
+     "T1547.014",
+     "T1547",
+     "T1547.004",
+     "T1037.001",
+     "T1574.011"
+    ]
+   },
+   {
+    "id": "pa08",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.7472236,
+    "retrieved": [
+     "T1110.002",
+     "T1110",
+     "T1550.002",
+     "T1557",
+     "T1552",
+     "T1556.004"
+    ]
+   },
+   {
+    "id": "pa09",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.76640403,
+    "retrieved": [
+     "T1071.004",
+     "T1001",
+     "T1568.003",
+     "T1071.001",
+     "T1584.002",
+     "T1102.002"
+    ]
+   },
+   {
+    "id": "pa10",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 5,
+    "top_score": 0.7135124,
+    "retrieved": [
+     "T1204.005",
+     "owasp_llm",
+     "T1189",
+     "T1195",
+     "T1195.002",
+     "T1608.001"
+    ]
+   },
+   {
+    "id": "pa11",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.703488,
+    "retrieved": [
+     "T1051",
+     "T1567",
+     "T1190",
+     "T1584.006",
+     "T1583.006",
+     "T1584.004"
+    ]
+   },
+   {
+    "id": "pa12",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7082646,
+    "retrieved": [
+     "T1056.001",
+     "T1056.003",
+     "T1056",
+     "T1123",
+     "T1056.002",
+     "T1125"
+    ]
+   },
+   {
+    "id": "pa13",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7367394,
+    "retrieved": [
+     "T1621",
+     "T1204",
+     "T1667",
+     "T1589.001",
+     "T1562",
+     "T1586.002"
+    ]
+   },
+   {
+    "id": "pa14",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.77131504,
+    "retrieved": [
+     "T1556.001",
+     "T1003.006",
+     "T1078.002",
+     "T1207",
+     "T1003.005",
+     "T1584.001"
+    ]
+   },
+   {
+    "id": "pa15",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 5,
+    "top_score": 0.70664316,
+    "retrieved": [
+     "T1537",
+     "T1486",
+     "T1565.001",
+     "T1492",
+     "T1567.002",
+     "T1213"
+    ]
+   },
+   {
+    "id": "pa16",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.72859114,
+    "retrieved": [
+     "T1611",
+     "T1610",
+     "T1543.005",
+     "T1134.003",
+     "T1528",
+     "T1052.001"
+    ]
+   },
+   {
+    "id": "pa17",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7536298,
+    "retrieved": [
+     "T1496.001",
+     "T1496",
+     "T1657",
+     "T1592.001",
+     "T1600.002",
+     "T1578.005"
+    ]
+   },
+   {
+    "id": "pa18",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.77856326,
+    "retrieved": [
+     "T1497.002",
+     "T1497.001",
+     "T1497",
+     "T1497.003",
+     "T1564.006",
+     "T1622"
+    ]
+   },
+   {
+    "id": "pa19",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.8197104,
+    "retrieved": [
+     "T1558.001",
+     "T1558",
+     "T1550.003",
+     "T1558.003",
+     "T1558.002",
+     "T1097"
+    ]
+   },
+   {
+    "id": "pa20",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.75266856,
+    "retrieved": [
+     "T1105",
+     "T1608.002",
+     "T1570",
+     "T1588.002",
+     "T1195.001",
+     "T1210"
+    ]
+   },
+   {
+    "id": "pa21",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 3,
+    "top_score": 0.64303863,
+    "retrieved": [
+     "T1053",
+     "T1053.007",
+     "T1053.005",
+     "T1168",
+     "T1678",
+     "T1053.006"
+    ]
+   },
+   {
+    "id": "pa22",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.77524626,
+    "retrieved": [
+     "T1563.002",
+     "T1021.001",
+     "T1076",
+     "T1563",
+     "T1021",
+     "T1078"
+    ]
+   },
+   {
+    "id": "pa23",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.84161794,
+    "retrieved": [
+     "T1539",
+     "T1550.004",
+     "T1506",
+     "T1606.001",
+     "T1185",
+     "T1563"
+    ]
+   },
+   {
+    "id": "pa24",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.7836133,
+    "retrieved": [
+     "T1171",
+     "T1557.001",
+     "T1589.001",
+     "T1056.003",
+     "T1589",
+     "T1040"
+    ]
+   },
+   {
+    "id": "pa25",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.73351276,
+    "retrieved": [
+     "T1620",
+     "T1093",
+     "T1055.009",
+     "T1055",
+     "T1055.013",
+     "T1055.012"
+    ]
+   },
+   {
+    "id": "pa26",
+    "category": "paraphrase",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.68586767,
+    "retrieved": [
+     "T1490",
+     "T1489",
+     "T1562",
+     "T1486",
+     "T1668",
+     "T1108"
+    ]
+   },
+   {
+    "id": "ow01",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.82601845,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow02",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.81686944,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow03",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.8527309,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow04",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 2,
+    "top_score": 0.80177945,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow05",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7278243,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow06",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.8244805,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "ow07",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7311684,
+    "retrieved": [
+     "owasp_llm",
+     "T1055",
+     "owasp_llm",
+     "T1055.002",
+     "owasp_llm",
+     "T1055.001"
+    ]
+   },
+   {
+    "id": "ow08",
+    "category": "owasp",
+    "answerable": true,
+    "rank": 1,
+    "top_score": 0.7099301,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm",
+     "owasp_llm"
+    ]
+   },
+   {
+    "id": "un01",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.42815512,
+    "retrieved": [
+     "T1175",
+     "T1591.001",
+     "T1526",
+     "T1550.001",
+     "T1559.001",
+     "T1213.001"
+    ]
+   },
+   {
+    "id": "un02",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.49003682,
+    "retrieved": [
+     "T1606.001",
+     "T1194",
+     "T1500",
+     "T1027.003",
+     "T1134.002",
+     "T1064"
+    ]
+   },
+   {
+    "id": "un03",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.41574156,
+    "retrieved": [
+     "owasp_llm",
+     "owasp_llm",
+     "T1059.005",
+     "owasp_llm",
+     "T1555.003",
+     "T1113"
+    ]
+   },
+   {
+    "id": "un04",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.5147911,
+    "retrieved": [
+     "T1530",
+     "T1218.014",
+     "T1028",
+     "T1213.004",
+     "T1671",
+     "T1136.003"
+    ]
+   },
+   {
+    "id": "un05",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.52033925,
+    "retrieved": [
+     "T1091",
+     "T1097",
+     "T1210",
+     "T1017",
+     "T1563.002",
+     "T1051"
+    ]
+   },
+   {
+    "id": "un06",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.47927496,
+    "retrieved": [
+     "T1182",
+     "T1546.009",
+     "T1106",
+     "T1055.004",
+     "T1568.003",
+     "T1611"
+    ]
+   },
+   {
+    "id": "un07",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.6474409,
+    "retrieved": [
+     "T1078.001",
+     "T1201",
+     "T1556.008",
+     "T1110.001",
+     "T1555.005",
+     "T1037.003"
+    ]
+   },
+   {
+    "id": "un08",
+    "category": "unanswerable",
+    "answerable": false,
+    "rank": null,
+    "top_score": 0.49626437,
+    "retrieved": [
+     "T1598.002",
+     "T1546.018",
+     "T1128",
+     "T1156",
+     "T1482",
+     "T1059.007"
+    ]
+   }
+  ]
+ },
+ "generator": "gemini-3.5-flash-lite",
+ "judge": "gemini-3.1-flash-lite",
+ "answers": {
+  "n": 20,
+  "faithfulness": 1.0,
+  "citation_rate": 1.0,
+  "technique_id_accuracy": 0.875,
+  "correct_abstention": 1.0,
+  "false_abstention": 0.25,
+  "rows": [
+   {
+    "id": "id01",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": true
+   },
+   {
+    "id": "na01",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": false,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa01",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow01",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un01",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id02",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": true
+   },
+   {
+    "id": "na02",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa02",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow02",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un02",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id03",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": true
+   },
+   {
+    "id": "na03",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa03",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow03",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un03",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id04",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": true
+   },
+   {
+    "id": "na04",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa04",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow04",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un04",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   }
+  ]
+ }
+}

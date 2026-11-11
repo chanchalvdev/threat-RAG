@@ -1,4 +1,4 @@
-.PHONY: setup dev test lint ingest docker-up docker-down typecheck
+.PHONY: setup dev test lint ingest docker-up docker-down typecheck eval
 
 BACKEND=backend
 WEB=web
@@ -30,6 +30,10 @@ typecheck:
 
 ingest:
 	cd $(BACKEND) && .venv/bin/python -m app.scripts.ingest_all
+
+# Offline evaluation over eval/golden.jsonl. LABEL names the results file; ANSWERS=N also judges N answers.
+eval:
+	cd $(BACKEND) && .venv/bin/python -m app.scripts.run_eval --label $(or $(LABEL),local) --answers $(or $(ANSWERS),0) --delay 2
 
 docker-up:
 	docker compose -f infra/docker-compose.yml up -d

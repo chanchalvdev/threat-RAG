@@ -16,6 +16,11 @@
 - `pytest tests/integration -v -m integration`
 - Pass: retrieval quality tests hit expected keywords
 
+### Level 3b: Offline evaluation (before merging retrieval, prompt or model changes)
+- Requires: Qdrant + embedder with the corpus ingested; `--answers` also needs the LLM and judge
+- `python -m app.scripts.run_eval --label <name> [--answers 20 --delay 2]`
+- Pass: no metric in `eval/results/<name>.json` regresses against the last recorded run
+
 ### Level 4: E2E Tests (before deploy)
 - Playwright against live stack
 - Pass: all 3 E2E scenarios complete without error
