@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM — Kimchi (OpenAI-compatible)
+    # LLM fallback — Kimchi (OpenAI-compatible), used when its key is set
     kimchi_api_key: str = ""
     kimchi_base_url: str = "https://llm.kimchi.dev/openai/v1"
     llm_provider: Literal["kimchi", "openai"] = "kimchi"
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 120.0
     llm_max_tokens: int = 4096  # hard cap on completion length (guards against runaway generation)
 
-    # LLM fallback — Google Gemini via its OpenAI-compatible endpoint (enabled when key is set)
+    # LLM primary — Google Gemini via its OpenAI-compatible endpoint
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     gemini_model: str = "gemini-2.5-flash"
@@ -59,6 +59,9 @@ class Settings(BaseSettings):
 
     # External APIs
     tavily_api_key: str = ""
+    abuseipdb_api_key: str = ""
+    otx_api_key: str = ""
+    abusech_auth_key: str = ""  # shared by MalwareBazaar, URLhaus and ThreatFox
 
 
 @lru_cache

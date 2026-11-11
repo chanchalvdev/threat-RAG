@@ -6,6 +6,7 @@ import httpx
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.intel_tools import intel_tools
 from app.core.logging import get_logger
 from app.rag.embedder import BaseEmbedder
 from app.rag.sanitiser import sanitise_tool_input
@@ -140,4 +141,5 @@ def build_tools(store: QdrantStore, embedder: BaseEmbedder) -> list[BaseTool]:
         ThreatRAGSearchTool(store=store, embedder=embedder),
         NVDCVETool(),
         TavilySearchTool(),
+        *intel_tools(),
     ]

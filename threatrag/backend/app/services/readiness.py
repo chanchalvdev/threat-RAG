@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings, get_settings
+from app.core.llm import providers
 from app.db.connection import get_pool, is_db_ready
 from app.models.schemas import ReadinessCheck
 
@@ -14,12 +15,8 @@ _cache: dict[str, Any] = {"data": None, "expires": 0.0}
 
 def _llm_targets(s: Settings) -> list[tuple[str, str, str, str]]:
     """(check name, base URL, API key, model) for each configured provider."""
-    if not s.kimchi_api_key:
-        return [("llm", s.gemini_base_url, s.gemini_api_key, s.gemini_model)] if s.gemini_api_key else []
-    targets = [("llm", s.kimchi_base_url, s.kimchi_api_key, s.llm_model)]
-    if s.gemini_api_key:
-        targets.append(("llm_fallback", s.gemini_base_url, s.gemini_api_key, s.gemini_model))
-    return targets
+    names = ("llm", "llm_fallback")
+    return [(name, base, key, model) for name, (model, key, base) in zip(names, providers(s))]
 
 
 async def _probe_llm(base: str, key: str, model: str) -> str:

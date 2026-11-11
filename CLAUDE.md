@@ -33,10 +33,10 @@ threat-RAG/
 ## Tech Stack
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.11 + FastAPI + Pydantic v2 |
+| Backend | Python 3.13 + FastAPI + Pydantic v2 |
 | RAG | LangChain 0.3 + LCEL |
 | Agents | LangGraph 0.2 (Phase 3) |
-| LLM | Kimchi kimi-k2.6 (OpenAI-compatible) |
+| LLM | Gemini primary, Kimchi fallback (both OpenAI-compatible) |
 | Embeddings | Ollama nomic-embed-text (local) |
 | Vector DB | Qdrant |
 | Relational DB | PostgreSQL + pgvector (Phase 3) |
@@ -105,7 +105,7 @@ pytest tests/integration -v -m integration
 5. Manual smoke test via `/health/ready`
 
 ## Key Decisions
-- Kimchi is the primary LLM (not Anthropic) — use `langchain_openai.ChatOpenAI` + custom base_url
+- Gemini is the primary LLM and Kimchi the fallback (not Anthropic) — use `app/core/llm.py:get_llm`, which builds `langchain_openai.ChatOpenAI` with a custom base_url
 - Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims
 - All streaming via SSE — WebSocket only in Phase 3 for agent progress
 - Security hardening per OWASP LLM Top 10 is built-in, not bolted on

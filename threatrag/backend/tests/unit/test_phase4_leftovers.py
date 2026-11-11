@@ -85,6 +85,11 @@ def test_llm_targets(kimchi, gemini, expected):
     assert [t[0] for t in readiness._llm_targets(s)] == expected
 
 
+def test_llm_target_order_puts_gemini_first():
+    s = MagicMock(kimchi_api_key="k", gemini_api_key="g", gemini_model="gem", llm_model="kim")
+    assert [t[3] for t in readiness._llm_targets(s)] == ["gem", "kim"]
+
+
 def test_technique_check_flags_wrong_name_from_g18():
     out = validate_techniques('- T1021.006 "Command and Scripting Interpreter"', NAMES)
     assert "Windows Remote Management" in out and "Command and Scripting Interpreter" in out

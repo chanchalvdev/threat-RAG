@@ -1,7 +1,7 @@
-"""Single construction point for the chat model: Kimchi primary, Gemini fallback.
+"""Single construction point for the chat model: Gemini primary, Kimchi fallback.
 
 Both providers speak the OpenAI chat protocol, so the fallback is a second `ChatOpenAI`
-pointed at Gemini's OpenAI-compatible endpoint. The wrapper subclass (rather than
+pointed at the other provider's endpoint. With one key, that provider runs alone. The wrapper subclass (rather than
 `.with_fallbacks()`) keeps `bind_tools()` working for LangGraph's ReAct agent: tool
 kwargs flow through `_agenerate`/`_astream` and are replayed on the fallback.
 """
@@ -80,20 +80,26 @@ def _client(s: Settings, *, model: str, key: str, base_url: str, streaming: bool
     }
 
 
+def providers(s: Settings) -> list[tuple[str, str, str]]:
+    """Configured (model, key, base_url) in priority order."""
+    ordered = [
+        (s.gemini_model, s.gemini_api_key, s.gemini_base_url),
+        (s.llm_model, s.kimchi_api_key, s.kimchi_base_url),
+    ]
+    return [p for p in ordered if p[1]]
+
+
 def fallback_enabled() -> bool:
-    s = get_settings()
-    return bool(s.gemini_api_key and s.kimchi_api_key)
+    return len(providers(get_settings())) > 1
 
 
 def get_llm(streaming: bool = False, temperature: float = 0.1) -> ChatOpenAI:
     s = get_settings()
-    if not s.kimchi_api_key and s.gemini_api_key:  # Kimchi not configured: Gemini is the sole provider
-        return ChatOpenAI(**_client(s, model=s.gemini_model, key=s.gemini_api_key, base_url=s.gemini_base_url,
-                                    streaming=streaming, temperature=temperature))
-    primary = _client(s, model=s.llm_model, key=s.kimchi_api_key, base_url=s.kimchi_base_url,
-                      streaming=streaming, temperature=temperature)
-    if not fallback_enabled():
-        return ChatOpenAI(**primary)
-    backup = ChatOpenAI(**_client(s, model=s.gemini_model, key=s.gemini_api_key, base_url=s.gemini_base_url,
-                                  streaming=streaming, temperature=temperature))
-    return FallbackChatOpenAI(**primary, fallback=backup)
+    configured = providers(s) or [(s.llm_model, "", s.kimchi_base_url)]  # no keys: fails at call time
+    clients = [
+        _client(s, model=model, key=key, base_url=base, streaming=streaming, temperature=temperature)
+        for model, key, base in configured
+    ]
+    if len(clients) == 1:
+        return ChatOpenAI(**clients[0])
+    return FallbackChatOpenAI(**clients[0], fallback=ChatOpenAI(**clients[1]))

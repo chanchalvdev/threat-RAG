@@ -1,7 +1,7 @@
 # Phase 4 — Phase-3 Completion + Production Hardening
 
 **Date:** 2026-10-16
-**Status:** Part A complete (leftovers closed 2026-10-30; live re-check pending) · Part B started (CI, deploy prep) · Part C planned
+**Status:** Part A complete (leftovers closed 2026-10-30; live re-check pending) · Part B started (CI, deploy prep) · Part C started (free enrichment tools)
 
 ## Why this phase exists
 A code audit on 2026-10-16 found Phases 1–3 *scaffolded* but several Phase 2/3
@@ -93,7 +93,7 @@ must be re-checked on Kimchi.
 | G16 | No completion cap → small model generated for 15+ min on one call | **fixed**: `LLM_MAX_TOKENS` (default 4096) |
 | G17 | Judge returned bare `["true","false"]`; `bool("false")` is True | **fixed**: tolerant parser + `_truthy` |
 | G18 | Reporter can emit mismatched technique ID/name (e.g. T1021.006 "Command and Scripting Interpreter") | **fixed**: `agent/technique_check.py` appends a "Technique Validation" section (tokens have already streamed, so it annotates rather than rewrites) |
-| G19 | No LLM fallback — a single provider outage stops everything | **fixed**: Gemini fallback (`app/core/llm.py`, set `GEMINI_API_KEY`); falls back on provider/connection errors, never after tokens streamed, never on 400/422 |
+| G19 | No LLM fallback — a single provider outage stops everything | **fixed**: Gemini primary, Kimchi fallback since 2026-10-30 (`app/core/llm.py`); falls back on provider/connection errors, never after tokens streamed, never on 400/422 |
 | G20 | `psycopg_pool` was never installed; `tavily-python` still not installed | pool **fixed**; Tavily path untested |
 | G21 | Web ESLint config broken (ESLint 9 needs flat config) | **fixed**: `web/eslint.config.js` |
 | G22 | Unit coverage 66% (< 80% target); DB/service paths only covered live | **fixed**: 83%, enforced in CI; integration tests on the compose stack still to add |
@@ -121,8 +121,8 @@ must be re-checked on Kimchi.
 ## Part C — Feature roadmap
 | Feature | Value |
 |---|---|
-| IOC enrichment tools: VirusTotal, AbuseIPDB, Shodan, AlienVault OTX, GreyNoise, WHOIS/passive DNS | `ip`/`hash`/`domain` investigations currently have no data source beyond web search |
-| Scheduled feeds: MITRE quarterly, CISA KEV daily, NVD delta, STIX/TAXII | Keeps KB fresh without manual ingest |
+| IOC enrichment tools | **Built** (`agent/intel_sources.py`, `agent/intel_tools.py`): Shodan InternetDB, CISA KEV, FIRST EPSS (no key, live-tested); AbuseIPDB, AlienVault OTX, MalwareBazaar, URLhaus, ThreatFox (free keys, mock-tested only). Not built: VirusTotal, paid Shodan, GreyNoise, WHOIS/passive DNS |
+| Scheduled feeds: MITRE quarterly, NVD delta, STIX/TAXII (CISA KEV is fetched on demand and cached 6 h) | Keeps KB fresh without manual ingest |
 | Hybrid retrieval: BM25 + dense, cross-encoder rerank, technique-ID exact match | IDs like T1059.001 retrieve poorly with dense-only |
 | Report export: STIX 2.1 bundle, PDF, Jira/ServiceNow ticket, Slack/Teams | Fits SOC workflow |
 | SIEM integration: Splunk/Sentinel/Elastic alert → auto-investigate webhook | Turns tool into automation |
