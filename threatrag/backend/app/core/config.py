@@ -36,6 +36,8 @@ class Settings(BaseSettings):
         "http://localhost:5173", "http://localhost:5174", "http://localhost:3000",
     ]
     api_key: str = ""  # when set, /api/v1/* requires header X-API-Key
+    # Prompt-injection guard: heuristic scoring; "llm" adds a judge-model second opinion on borderline input
+    guard_mode: Literal["off", "heuristic", "llm"] = "heuristic"
     max_upload_mb: int = 25
 
     # Vector Store
@@ -72,6 +74,10 @@ class Settings(BaseSettings):
     log_format: str = "console"
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+    # USD per million tokens for the primary model; 0 = cost is reported as unknown
+    llm_price_in_per_mtok: float = 0.0
+    llm_price_out_per_mtok: float = 0.0
 
     # External APIs
     tavily_api_key: str = ""

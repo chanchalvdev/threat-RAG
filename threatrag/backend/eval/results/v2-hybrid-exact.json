@@ -1,6 +1,6 @@
 {
  "label": "v2-hybrid-exact",
- "at": "2026-11-12T15:56:25+00:00",
+ "at": "2026-11-12T16:03:23+00:00",
  "collection": "threat_intel_v2",
  "embedding": "ollama:nomic-embed-text",
  "retrieval_mode": "hybrid",
@@ -1006,6 +1006,182 @@
      "T1598.003",
      "T1683.001"
     ]
+   }
+  ]
+ },
+ "generator": "gemini-3.5-flash-lite",
+ "judge": "gemini-3.1-flash-lite",
+ "answers": {
+  "n": 20,
+  "faithfulness": 0.9875,
+  "citation_rate": 0.875,
+  "technique_id_accuracy": 0.9166666666666666,
+  "correct_abstention": 1.0,
+  "false_abstention": 0.0,
+  "rows": [
+   {
+    "id": "id01",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "na01",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa01",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow01",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un01",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id02",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "na02",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa02",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow02",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un02",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id03",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "na03",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa03",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": false,
+    "faithfulness": 0.8
+   },
+   {
+    "id": "ow03",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un03",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
+   },
+   {
+    "id": "id04",
+    "category": "id_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "na04",
+    "category": "name_lookup",
+    "answerable": true,
+    "refused": false,
+    "cited": false,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "pa04",
+    "category": "paraphrase",
+    "answerable": true,
+    "refused": false,
+    "cited": false,
+    "id_correct": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "ow04",
+    "category": "owasp",
+    "answerable": true,
+    "refused": false,
+    "cited": true,
+    "faithfulness": 1.0
+   },
+   {
+    "id": "un04",
+    "category": "unanswerable",
+    "answerable": false,
+    "refused": true
    }
   ]
  }

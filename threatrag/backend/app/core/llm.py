@@ -16,7 +16,9 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from app.core.config import Settings, get_settings
+from app.core.gemini_compat import GeminiCompatChatOpenAI
 from app.core.logging import get_logger
+from app.core.tracing import llm_callbacks
 
 log = get_logger(__name__)
 # A malformed request fails the same way on any provider; everything else is worth a retry elsewhere.
@@ -31,7 +33,7 @@ def should_fallback(exc: Exception) -> bool:
     return isinstance(exc, openai.APIError)
 
 
-class FallbackChatOpenAI(ChatOpenAI):  # type: ignore[override]  # pydantic __replace__ stub quirk
+class FallbackChatOpenAI(GeminiCompatChatOpenAI):  # type: ignore[override]  # pydantic __replace__ stub quirk
     """ChatOpenAI that retries a failed call (or a stream that produced nothing) on `fallback`."""
 
     fallback: ChatOpenAI | None = None
@@ -77,6 +79,9 @@ def _client(s: Settings, *, model: str, key: str, base_url: str, streaming: bool
         "timeout": s.llm_timeout_s,
         "max_completion_tokens": s.llm_max_tokens,
         "max_retries": 2,
+        "stream_usage": True,
+        "callbacks": llm_callbacks(),
+        "google_compat": "googleapis.com" in base_url,
     }
 
 
@@ -100,9 +105,8 @@ def get_llm(streaming: bool = False, temperature: float = 0.1) -> ChatOpenAI:
         _client(s, model=model, key=key, base_url=base, streaming=streaming, temperature=temperature)
         for model, key, base in configured
     ]
-    if len(clients) == 1:
-        return ChatOpenAI(**clients[0])
-    return FallbackChatOpenAI(**clients[0], fallback=ChatOpenAI(**clients[1]))
+    fallback = FallbackChatOpenAI(**clients[1]) if len(clients) > 1 else None
+    return FallbackChatOpenAI(**clients[0], fallback=fallback)
 
 
 def get_judge_llm() -> ChatOpenAI:
@@ -113,4 +117,4 @@ def get_judge_llm() -> ChatOpenAI:
     configured = providers(s)
     key = s.judge_api_key or (configured[0][1] if configured else "")
     base = s.judge_base_url or (configured[0][2] if configured else s.kimchi_base_url)
-    return ChatOpenAI(**_client(s, model=s.judge_model, key=key, base_url=base, streaming=False, temperature=0.0))
+    return FallbackChatOpenAI(**_client(s, model=s.judge_model, key=key, base_url=base, streaming=False, temperature=0.0))

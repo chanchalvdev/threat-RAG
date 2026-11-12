@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.agent import intel_sources as src
 from app.agent.investigation_models import IOC_PATTERNS
 from app.core.config import get_settings
+from app.guard.untrusted import wrap_untrusted
 
 
 class _IntelTool(BaseTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
@@ -45,12 +46,12 @@ class IPIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__
             return f"{addr} is not a public address, so it was not sent to external services."
         s, value = get_settings(), str(addr)
         section = "IPv4" if addr.version == 4 else "IPv6"
-        return await src.gather_evidence(value, {
+        return wrap_untrusted(self.name, await src.gather_evidence(value, {
             "Shodan InternetDB": src.internetdb(value),
             "AbuseIPDB": src.abuseipdb(value, s.abuseipdb_api_key) if s.abuseipdb_api_key else None,
             "AlienVault OTX": src.otx(section, value, s.otx_api_key) if s.otx_api_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
-        })
+        }))
 
 
 class DomainIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
@@ -63,11 +64,11 @@ class DomainIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __repla
         if not IOC_PATTERNS["domain"].match(value):
             return f"Invalid domain: {domain[:50]}"
         s = get_settings()
-        return await src.gather_evidence(value, {
+        return wrap_untrusted(self.name, await src.gather_evidence(value, {
             "AlienVault OTX": src.otx("domain", value, s.otx_api_key) if s.otx_api_key else None,
             "URLhaus": src.urlhaus(value, s.abusech_auth_key) if s.abusech_auth_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
-        })
+        }))
 
 
 class HashIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
@@ -80,11 +81,11 @@ class HashIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace
         if not IOC_PATTERNS["hash"].match(value):
             return f"Invalid hash: {file_hash[:70]}"
         s = get_settings()
-        return await src.gather_evidence(value, {
+        return wrap_untrusted(self.name, await src.gather_evidence(value, {
             "AlienVault OTX": src.otx("file", value, s.otx_api_key) if s.otx_api_key else None,
             "MalwareBazaar": src.malwarebazaar(value, s.abusech_auth_key) if s.abusech_auth_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
-        })
+        }))
 
 
 class CVEExploitationTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
@@ -96,7 +97,7 @@ class CVEExploitationTool(_IntelTool):  # type: ignore[override]  # pydantic __r
         value = cve_id.strip().upper()
         if not IOC_PATTERNS["cve"].match(value):
             return f"Invalid CVE ID format: {cve_id[:50]}"
-        return await src.gather_evidence(value, {"CISA KEV": src.kev(value), "FIRST EPSS": src.epss(value)})
+        return wrap_untrusted(self.name, await src.gather_evidence(value, {"CISA KEV": src.kev(value), "FIRST EPSS": src.epss(value)}))
 
 
 def intel_tools() -> list[BaseTool]:

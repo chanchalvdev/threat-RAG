@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.session import session_manager
 from app.api.deps import get_store
-from app.api.routes import chat, evaluate, ingest, investigate, query
+from app.api.routes import chat, evaluate, ingest, investigate, metrics, query
 from app.api.security import require_api_key
 from app.core.config import get_settings
 from app.db.connection import close_pool, is_db_ready, open_pool
@@ -48,7 +48,8 @@ app = FastAPI(
         {"name": "query", "description": "Ask questions against the RAG knowledge base"},
         {"name": "chat", "description": "Conversational ReAct agent with tool use (RAG + NVD CVE + web search)"},
         {"name": "investigate", "description": "Multi-agent Researcher → Critic → Reporter IOC investigations"},
-        {"name": "evaluate", "description": "RAGAs-based quality scoring of RAG answers"},
+        {"name": "evaluate", "description": "LLM-judge quality scoring of RAG answers"},
+        {"name": "metrics", "description": "Runtime latency, token and guard telemetry"},
     ],
 )
 
@@ -62,7 +63,7 @@ app.add_middleware(
 )
 app.middleware("http")(logging_middleware)
 
-for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router):
+for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router):
     app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key)])
 
 

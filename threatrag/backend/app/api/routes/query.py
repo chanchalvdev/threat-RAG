@@ -1,13 +1,13 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_chain
+from app.api.security import ensure_safe
 from app.core.logging import get_logger
 from app.models.schemas import QueryRequest, RAGResponse
 from app.rag.chain import ThreatRAGChain
-from app.rag.sanitiser import is_injection
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/query", tags=["query"])
@@ -27,9 +27,7 @@ router = APIRouter(prefix="/query", tags=["query"])
     },
 )
 async def query(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -> RAGResponse:
-    if is_injection(req.question):
-        log.warning("injection_detected", question=req.question[:100])
-        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
+    await ensure_safe(req.question)
     return await chain.query(req)
 
 
@@ -59,8 +57,7 @@ async def query(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -
     },
 )
 async def query_stream(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -> StreamingResponse:
-    if is_injection(req.question):
-        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
+    await ensure_safe(req.question)
 
     async def _event_stream():
         async for text, sources in chain.astream(req):

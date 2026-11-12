@@ -4,10 +4,12 @@ from langchain_openai import ChatOpenAI
 
 from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.core.telemetry import telemetry
 from app.models.schemas import QueryRequest, RAGResponse, SourceDoc
 from app.rag.prompts import RAG_PROMPT
 from app.rag.retriever import Retrieval, Retriever
-from app.rag.sanitiser import sanitise_output
+from app.guard.untrusted import wrap_untrusted
+from app.rag.sanitiser import StreamSanitiser, sanitise_output
 
 log = get_logger(__name__)
 ABSTAIN_ANSWER = (
@@ -22,9 +24,9 @@ def _build_llm() -> ChatOpenAI:
 
 
 def _format_context(sources: list[SourceDoc]) -> str:
-    return "\n---\n".join(
+    return wrap_untrusted("knowledge_base", "\n---\n".join(
         f"[Source: {s.source}{' · ' + s.ref_id if s.ref_id else ''} ({s.doc_type})]\n{s.text}" for s in sources
-    )
+    ))
 
 
 class ThreatRAGChain:
@@ -40,6 +42,7 @@ class ThreatRAGChain:
         found, sources = await self._retrieve(req)
         if found.abstain:
             log.info("rag_abstained", top=round(found.top_score, 3))
+            telemetry.count("rag_abstained")
             return RAGResponse(answer=ABSTAIN_ANSWER, sources=[], confidence="none", abstained=True)
 
         prompt = RAG_PROMPT.format_messages(context=_format_context(sources), question=req.question)
@@ -62,7 +65,9 @@ class ThreatRAGChain:
 
         yield ("__sources__", sources)
         prompt = RAG_PROMPT.format_messages(context=_format_context(sources), question=req.question)
+        clean = StreamSanitiser()
         async for chunk in self._llm.astream(prompt):
-            text = sanitise_output(str(chunk.content))
-            if text:
+            if text := clean.feed(str(chunk.content)):
                 yield (text, [])
+        if tail := clean.flush():
+            yield (tail, [])

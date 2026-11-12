@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from app.agent.tools import MAX_TOOL_CALLS
 from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.guard.untrusted import UNTRUSTED_RULE, unwrap
+from app.rag.sanitiser import StreamSanitiser
 from app.models.agent_schemas import (
     AgentChunk, AgentDone, AgentError, AgentThought, AgentToolCall,
     AgentToolResult, ToolCallData, to_sse,
@@ -27,7 +29,7 @@ SYSTEM_PROMPT = (
     "(ip_intel_lookup, domain_intel_lookup, hash_intel_lookup), and search the web only for "
     "recent info (web_search). Use earlier turns of the conversation to resolve references like 'it' or "
     "'that CVE'. Provide your final answer in structured markdown with sections: "
-    "Summary, Technical Details, MITRE ATT&CK Mapping, Recommendations."
+    "Summary, Technical Details, MITRE ATT&CK Mapping, Recommendations. " + UNTRUSTED_RULE
 )
 
 
@@ -64,6 +66,7 @@ class ThreatIntelAgent:
     async def stream(self, question: str, session_id: str) -> AsyncIterator[str]:
         async with self._lock:
             answer = ""  # text of the latest model turn = final answer
+            clean = StreamSanitiser()
             try:
                 yield to_sse(AgentThought(data="Starting investigation..."))
                 async for event in self._graph.astream_events(
@@ -73,18 +76,23 @@ class ThreatIntelAgent:
                     data = event.get("data", {})
                     if kind == "on_tool_start":
                         answer = ""
+                        if tail := clean.flush():
+                            yield to_sse(AgentChunk(data=tail))
                         yield to_sse(AgentToolCall(data=ToolCallData(
                             name=event["name"], input=str(data.get("input", "")), tool_use_id=event["run_id"],
                         )))
                     elif kind == "on_tool_end":
                         output = data.get("output", "")
                         text = getattr(output, "content", output)
-                        yield to_sse(AgentToolResult(data=str(text)[:500], tool_use_id=event["run_id"]))
+                        yield to_sse(AgentToolResult(data=unwrap(str(text))[:500], tool_use_id=event["run_id"]))
                     elif kind == "on_chat_model_stream":
                         chunk = data.get("chunk")
                         if chunk is not None and chunk.content:
                             answer += str(chunk.content)
-                            yield to_sse(AgentChunk(data=str(chunk.content)))
+                            if safe := clean.feed(str(chunk.content)):
+                                yield to_sse(AgentChunk(data=safe))
+                if tail := clean.flush():
+                    yield to_sse(AgentChunk(data=tail))
                 self._remember(question, answer)
                 yield to_sse(AgentDone(session_id=session_id))
             except GraphRecursionError:

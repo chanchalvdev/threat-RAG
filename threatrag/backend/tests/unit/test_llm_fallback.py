@@ -46,7 +46,7 @@ def test_single_key_runs_that_provider_alone():
     for settings, model in ((_settings(""), "kimi-k2.6"), (only_gemini, "gemini-3.5-flash-lite")):
         with patch("app.core.llm.get_settings", return_value=settings):
             client = llm_mod.get_llm()
-            assert type(client).__name__ == "ChatOpenAI" and client.model_name == model
+            assert client.fallback is None and client.model_name == model
             assert not llm_mod.fallback_enabled()
 
 

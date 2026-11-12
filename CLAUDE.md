@@ -118,4 +118,7 @@ pytest tests/integration -v -m integration
 - Retrieval goes through `app/rag/retriever.py` (exact ID lookup → dense + lexical RRF → optional rerank → abstain); never call `store.search` from features
 - Retrieval, prompt or model changes must be measured with `python -m app.scripts.run_eval` before merging
 - All streaming via SSE — WebSocket only in Phase 3 for agent progress
-- Security hardening per OWASP LLM Top 10 is built-in, not bolted on
+- Security hardening per OWASP LLM Top 10 is built-in, not bolted on: user text goes through `app/api/security.py:ensure_safe`, tool/feed/KB text through `app/guard/untrusted.py:wrap_untrusted`, model output through `app/rag/sanitiser.py` (`StreamSanitiser` for streams)
+- Never redact or escape IOCs (emails, hashes, IPs, attacker passwords) in output; only credential formats are redacted
+- Gemini-specific behaviour (thought signatures, cumulative stream usage) belongs in `app/core/gemini_compat.py` only
+- Guard changes must be scored with `python -m app.scripts.run_guard_eval`; never tune rules on the `holdout` rows

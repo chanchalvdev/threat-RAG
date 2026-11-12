@@ -60,7 +60,7 @@ async def test_stream_yields_sources_then_chunks(chain, mock_store, mock_llm):
     mock_llm.astream = tokens
     events = [e async for e in chain.astream(QueryRequest(question="How does password guessing work?"))]
     assert events[0][0] == "__sources__" and len(events[0][1]) == 1
-    assert [text for text, _ in events[1:]] == ["Hello ", "world"]
+    assert "".join(text for text, _ in events[1:]) == "Hello world"
 
 
 async def test_stream_abstains(chain):

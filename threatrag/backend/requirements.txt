@@ -16,5 +16,7 @@ tiktoken==0.13.*
 psycopg[binary,pool]==3.3.*
 # Cross-encoder reranker (ONNX, no torch). Loaded only when RERANKER=cross_encoder.
 fastembed==0.9.*
+# Optional tracing. Imported only when LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set.
+langfuse==5.*
 # Web search tool — not installed/validated in the dev venv yet (TAVILY_API_KEY path untested)
 tavily-python==0.5.*

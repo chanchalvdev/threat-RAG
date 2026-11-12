@@ -65,7 +65,15 @@ export interface EvaluationRecord {
   created_at: string
 }
 
+export interface RuntimeMetrics {
+  routes: Record<string, { requests: number; errors_5xx: number; p50_ms: number; p95_ms: number }>
+  llm: { calls: number; tokens_in: number; tokens_out: number; p50_ms: number; p95_ms: number; estimated_cost_usd: number | null }
+  counters: Record<string, number>
+}
+
 // --- REST calls ---
+
+export const getRuntimeMetrics = () => http.get<RuntimeMetrics>('/metrics').then(r => r.data)
 
 export const listReports = (limit = 10) =>
   http.get<ReportSummary[]>('/investigate/reports', { params: { limit } }).then(r => r.data)

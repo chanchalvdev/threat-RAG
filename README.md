@@ -16,6 +16,8 @@ investigation pipeline that turns an indicator (CVE, IP, domain, hash) into a st
 | Enrichment tools | NVD, CISA KEV, FIRST EPSS, Shodan InternetDB, AbuseIPDB, OTX, abuse.ch, web search |
 | Report memory | Reports stored in PostgreSQL + pgvector; similar past investigations surfaced |
 | Evaluation | Offline golden-set harness (hit@k, MRR, faithfulness, abstention) plus per-answer LLM-judge scoring with a separate judge model |
+| Guardrails | Scored injection guard with optional LLM classifier, fenced tool output, IOC-safe secret redaction |
+| Observability | Per-route latency, token and guard telemetry at `/api/v1/metrics` and on the Analytics page; optional Langfuse tracing |
 | Resilience | Provider fallback (Gemini → Kimchi) that never switches mid-stream |
 
 ## Quickstart
@@ -83,6 +85,28 @@ What the numbers say:
   technique recovered it.
 - Reranking is opt-in: +0.03 hit@6 for about 1.1 s per query on CPU (1,190 ms vs 82 ms).
 
+**Answers** (20 stratified questions; generator `gemini-3.5-flash-lite`, judge `gemini-3.1-flash-lite`):
+
+| Pipeline | Faithfulness | Citation rate | Technique-ID accuracy | Correct abstention | False abstention |
+|---|---|---|---|---|---|
+| Phase 1 baseline | 1.00 | 1.00 | 0.88 | 1.00 | 0.25 |
+| Hybrid + exact (default) | 0.99 | 0.88 | 0.92 | 1.00 | 0.00 |
+
+The baseline stayed faithful by refusing a quarter of answerable questions. The current
+pipeline answers all of them; two answers came back without a citation tag, which is the next
+prompt fix.
+
+**Prompt-injection guard** (`eval/injection_suite.jsonl`, 45 attacks and 45 benign security
+questions; the held-out half was written after the rules were frozen):
+
+| Mode | Held-out block rate | Held-out false positives |
+|---|---|---|
+| Patterns only (`GUARD_MODE=heuristic`, default) | 0.65 | 0.00 |
+| Patterns + LLM classifier (`GUARD_MODE=llm`) | 0.95 | 0.00 |
+
+Patterns are free and never block a legitimate security question in the suite, but paraphrased
+attacks get past them. The classifier closes most of that gap for one extra small model call.
+
 Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
 
 ## Design decisions
@@ -100,6 +124,16 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
   Qdrant applies IDF, so there is no second index to keep in sync.
 - **Measured, not assumed.** Every retrieval switch is an env var, so the ablation above is
   four runs of one command.
+- **Guardrails that know the domain.** Analysts ask about "system prompt leakage" and "ignore
+  previous instructions" payloads, so the guard scores whether text *addresses the assistant*,
+  not whether it contains scary words. Tool and feed output is fenced as `<untrusted_data>`
+  before the model sees it. The output sanitiser redacts credential formats but leaves emails,
+  hashes and attacker passwords alone, because in threat intelligence those are the evidence.
+- **Provider quirks live in one file.** `app/core/gemini_compat.py` replays Gemini's tool-call
+  thought signatures and converts cumulative streaming usage to deltas (uncorrected, token
+  counts were about 13× too high).
+- **Telemetry without a vendor.** `GET /api/v1/metrics` reports per-route p50/p95, LLM tokens
+  and guard/abstention counters from the process itself; Langfuse is added when keys are set.
 - **Idempotent ingestion.** Point IDs are `uuid5` of the source key; re-ingesting overwrites.
   Points are tagged with their embedding model and mixing vector spaces is refused at startup.
 - **Readiness that tells the truth.** `/health/ready` runs a one-token completion, because a
@@ -119,8 +153,9 @@ CI (`.github/workflows/ci.yml`) runs the same gates plus Docker builds and a Tri
 ## Known limits
 
 Tracked with their fixes in [spec/phase5-9-plan.md](spec/phase5-9-plan.md):
-the prompt-injection filter is a regex list, and chat sessions and ingest jobs live in
-process memory. The golden set is 64 questions: enough to catch regressions, small enough
+chat sessions and ingest jobs live in process memory, the default injection guard is
+pattern-based (65% on held-out attacks), and Langfuse tracing is wired but not yet verified
+against a live project. The golden set is 64 questions: enough to catch regressions, small enough
 that one question moves a category by 4–12 points.
 
 ## Repository layout

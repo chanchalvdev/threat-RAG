@@ -7,7 +7,8 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
-from app.rag.sanitiser import is_injection, sanitise_output
+from app.guard.heuristic import BLOCK_AT, score
+from app.rag.sanitiser import sanitise_output
 
 log = get_logger(__name__)
 TIMEOUT_S = 10
@@ -28,7 +29,7 @@ async def _json(method: str, url: str, **kwargs: Any) -> Any:
 def _clean(value: Any, limit: int = 100) -> str:
     """Feed text is written by strangers and read by the LLM, so treat it as hostile."""
     text = " ".join(str(value).split())[:limit]
-    return "[removed]" if is_injection(text) else sanitise_output(text)
+    return "[removed: instruction-like text]" if score(text).score >= BLOCK_AT else sanitise_output(text)
 
 
 def _join(values: list[Any] | None, limit: int = 5) -> str:

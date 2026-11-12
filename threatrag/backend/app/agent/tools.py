@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.intel_tools import intel_tools
 from app.core.logging import get_logger
+from app.guard.untrusted import wrap_untrusted
 from app.rag.sanitiser import sanitise_tool_input
 from app.rag.retriever import Retriever
 
@@ -37,10 +38,10 @@ class ThreatRAGSearchTool(BaseTool):  # type: ignore[override]  # pydantic __rep
         found = await self.retriever.retrieve(sanitise_tool_input(query), k=6, doc_types=doc_types)
         if found.abstain or not found.hits:
             return "No relevant documents found in knowledge base."
-        return "\n---\n".join(
+        return wrap_untrusted(self.name, "\n---\n".join(
             f"[Source: {h.payload.get('source', '')}]\n{h.payload.get('text', '')}"
             for h in found.hits
-        )
+        ))
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         raise NotImplementedError("Use async only")
@@ -70,7 +71,7 @@ class NVDCVETool(BaseTool):  # type: ignore[override]  # pydantic __replace__ st
                 if r.status_code == 404 or not r.json().get("vulnerabilities"):
                     return f"CVE {cve_id} not found in NVD."
                 r.raise_for_status()
-                return _parse_nvd(r.json(), cve_id)
+                return wrap_untrusted(self.name, _parse_nvd(r.json(), cve_id))
         return "NVD API rate limit reached. Try again later."
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
@@ -123,10 +124,10 @@ class TavilySearchTool(BaseTool):  # type: ignore[override]  # pydantic __replac
         clean = sanitise_tool_input(f"cybersecurity threat: {query}")
         tool = TavilySearchResults(api_key=s.tavily_api_key, max_results=5)
         results = await tool.ainvoke({"query": clean})
-        return "\n---\n".join(
+        return wrap_untrusted(self.name, "\n---\n".join(
             f"[{r.get('title', '')}] {r.get('url', '')}\n{r.get('content', '')[:300]}"
             for r in (results if isinstance(results, list) else [])
-        )
+        ))
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         raise NotImplementedError("Use async only")
