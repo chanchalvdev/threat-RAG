@@ -13,7 +13,9 @@ from app.agent import nodes  # noqa: E402
 from app.api.routes import chat as chat_routes  # noqa: E402
 from app.db import connection  # noqa: E402
 from app.main import app  # noqa: E402
-from app.rag.store import QdrantStore  # noqa: E402
+from qdrant_client.models import SparseVector  # noqa: E402
+
+from app.rag.store import LegacyCollectionError, QdrantStore  # noqa: E402
 
 
 def _store(client: MagicMock) -> QdrantStore:
@@ -22,31 +24,55 @@ def _store(client: MagicMock) -> QdrantStore:
     return store
 
 
-async def test_ensure_collection_creates_once_with_indexes():
+async def test_ensure_collection_creates_named_dense_and_sparse_vectors_once():
     client = MagicMock(get_collections=AsyncMock(return_value=MagicMock(collections=[])),
                        create_collection=AsyncMock(), create_payload_index=AsyncMock())
     await _store(client).ensure_collection()
-    client.create_collection.assert_awaited_once()
-    assert client.create_payload_index.await_count == 3
+    kwargs = client.create_collection.await_args.kwargs
+    assert set(kwargs["vectors_config"]) == {"dense"} and set(kwargs["sparse_vectors_config"]) == {"sparse"}
+    assert client.create_payload_index.await_count == 4
 
     existing = MagicMock(collections=[MagicMock()])
     existing.collections[0].name = "c"
     client.get_collections = AsyncMock(return_value=existing)
+    client.get_collection = AsyncMock(return_value=MagicMock(config=MagicMock(params=MagicMock(vectors={"dense": 1}))))
     client.create_collection.reset_mock()
     await _store(client).ensure_collection()
     client.create_collection.assert_not_awaited()
 
 
-async def test_search_filters_by_doc_type():
+async def test_ensure_collection_refuses_a_pre_hybrid_collection():
+    existing = MagicMock(collections=[MagicMock()])
+    existing.collections[0].name = "c"
+    legacy = MagicMock(config=MagicMock(params=MagicMock(vectors=MagicMock(size=768))))
+    client = MagicMock(get_collections=AsyncMock(return_value=existing), get_collection=AsyncMock(return_value=legacy))
+    with pytest.raises(LegacyCollectionError, match="re-ingest"):
+        await _store(client).ensure_collection()
+
+
+async def test_search_is_dense_and_filters_by_doc_type():
     client = MagicMock(query_points=AsyncMock(return_value=MagicMock(points=["p"])))
     assert await _store(client).search([0.1], 3, doc_types=["mitre_attack"]) == ["p"]
-    assert client.query_points.await_args.kwargs["query_filter"].should[0].key == "doc_type"
+    kwargs = client.query_points.await_args.kwargs
+    assert kwargs["using"] == "dense" and kwargs["query_filter"].must[0].key == "doc_type"
 
 
-async def test_search_without_filter():
-    client = MagicMock(query_points=AsyncMock(return_value=MagicMock(points=[])))
-    await _store(client).search([0.1], 3)
-    assert client.query_points.await_args.kwargs["query_filter"] is None
+async def test_candidates_skips_lexical_side_without_a_sparse_query():
+    client = MagicMock(query_points=AsyncMock(return_value=MagicMock(points=["p"])))
+    assert await _store(client).candidates([0.1], None, 5) == (["p"], [])
+    assert client.query_points.await_count == 1
+    sparse = SparseVector(indices=[1], values=[1.0])
+    dense, lexical = await _store(client).candidates([0.1], sparse, 5)
+    assert (dense, lexical) == (["p"], ["p"]) and client.query_points.await_count == 3
+
+
+async def test_by_ids_and_dense_scores():
+    client = MagicMock(scroll=AsyncMock(return_value=(["a"], None)),
+                       query_points=AsyncMock(return_value=MagicMock(points=[MagicMock(id="x", score=0.7)])))
+    assert await _store(client).by_ids(["T1110"]) == ["a"]
+    assert [c.key for c in client.scroll.await_args.kwargs["scroll_filter"].should] == ["technique_id", "owasp_id"]
+    assert await _store(client).dense_scores([0.1], ["x"]) == {"x": 0.7}
+    assert await _store(client).dense_scores([0.1], []) == {}
 
 
 async def test_total_and_facet_counts():
@@ -101,7 +127,7 @@ async def test_researcher_records_tool_calls_and_gaps(feedback, expected_in_task
                 AIMessage(content="done")]
     agent = _agent({"messages": messages})
     with patch.object(nodes, "create_react_agent", return_value=agent), patch.object(nodes, "build_tools"), \
-            patch.object(nodes, "get_llm"), patch.object(nodes, "get_store"), patch.object(nodes, "get_embedder"), \
+            patch.object(nodes, "get_llm"), patch.object(nodes, "get_retriever"), \
             patch.object(nodes, "_kb_sources", new=AsyncMock(return_value=[])):
         out = await nodes.researcher_node(_state(critic_feedback=feedback))
     assert out["researcher_output"] == "done" and out["status"] == "critiquing"
@@ -112,8 +138,8 @@ async def test_researcher_records_tool_calls_and_gaps(feedback, expected_in_task
 
 async def test_researcher_truncates_at_tool_limit():
     with patch.object(nodes, "create_react_agent", return_value=_agent(error=GraphRecursionError())), \
-            patch.object(nodes, "build_tools"), patch.object(nodes, "get_llm"), patch.object(nodes, "get_store"), \
-            patch.object(nodes, "get_embedder"), patch.object(nodes, "_kb_sources", new=AsyncMock(return_value=[])):
+            patch.object(nodes, "build_tools"), patch.object(nodes, "get_llm"), patch.object(nodes, "get_retriever"), \
+            patch.object(nodes, "_kb_sources", new=AsyncMock(return_value=[])):
         out = await nodes.researcher_node(_state())
     assert "truncated" in out["researcher_output"] and out["tool_calls"] == []
 

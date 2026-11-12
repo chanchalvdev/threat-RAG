@@ -1,146 +1,72 @@
-import json
+"""Shared indexing path (embed, build points, upsert) and custom PDF ingestion."""
 import uuid
 from pathlib import Path
+from typing import Any
 
-import httpx
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pydantic import BaseModel
 from qdrant_client.models import PointStruct
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.rag.embedder import BaseEmbedder, embedding_tag
-from app.rag.store import QdrantStore
+from app.rag.sparse import encode_document
+from app.rag.store import DENSE, SPARSE, QdrantStore
 
 log = get_logger(__name__)
-MITRE_URL = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
-OWASP_LLM_URL = "https://owasp.org/www-project-top-10-for-large-language-model-applications/assets/PDF/OWASP-Top-10-for-LLMs-2023-v1_1.pdf"
 BATCH_SIZE = 100
 
 
-def _point_id(key: str) -> str:
+class Chunk(BaseModel):
+    key: str                 # stable identity: the same key always overwrites the same point
+    text: str
+    payload: dict[str, Any]  # source, doc_type and any source-specific fields
+
+
+def point_id(key: str) -> str:
     """Deterministic ID so re-ingesting the same chunk overwrites instead of duplicating."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
 
 
-def _splitter() -> RecursiveCharacterTextSplitter:
+def splitter() -> RecursiveCharacterTextSplitter:
     s = get_settings()
     return RecursiveCharacterTextSplitter(
-        chunk_size=s.chunk_size,
-        chunk_overlap=s.chunk_overlap,
-        separators=["\n\n", "\n", ". ", " "],
+        chunk_size=s.chunk_size, chunk_overlap=s.chunk_overlap, separators=["\n\n", "\n", ". ", " "],
     )
 
 
-async def _upsert_in_batches(
-    points: list[PointStruct], store: QdrantStore
-) -> None:
-    for i in range(0, len(points), BATCH_SIZE):
-        await store.upsert(points[i : i + BATCH_SIZE])
-        log.info("batch_upserted", count=min(i + BATCH_SIZE, len(points)), total=len(points))
-
-
-async def ingest_pdf(
-    path: str, doc_type: str, store: QdrantStore, embedder: BaseEmbedder
-) -> int:
+async def index_chunks(chunks: list[Chunk], store: QdrantStore, embedder: BaseEmbedder) -> int:
+    """Embed and upsert in batches: one dense and one lexical vector per chunk."""
     await store.assert_embedding(embedding_tag())
-    loader = PyPDFLoader(path)
-    pages = loader.load()
-    chunks = _splitter().split_documents(pages)
-    points: list[PointStruct] = []
-
-    vectors = await embedder.embed_batch([c.page_content for c in chunks])
-    for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
-        points.append(
+    tag = embedding_tag()
+    for start in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[start : start + BATCH_SIZE]
+        vectors = await embedder.embed_batch([c.text for c in batch])
+        points = [
             PointStruct(
-                id=_point_id(f"{Path(path).name}:{doc_type}:{idx}"),
-                vector=vector,
-                payload={
-                    "text": chunk.page_content,
-                    "source": Path(path).name,
-                    "doc_type": doc_type,
-                    "page": chunk.metadata.get("page", 0),
-                    "embedding_model": embedding_tag(),
-                    "chunk_index": idx,
-                },
+                id=point_id(c.key),
+                vector={DENSE: vector, SPARSE: encode_document(c.text)},
+                payload={**c.payload, "text": c.text, "embedding_model": tag, "chunk_index": start + offset},
             )
+            for offset, (c, vector) in enumerate(zip(batch, vectors))
+        ]
+        await store.upsert(points)
+        log.info("batch_upserted", count=start + len(batch), total=len(chunks))
+    return len(chunks)
+
+
+async def ingest_pdf(path: str, doc_type: str, store: QdrantStore, embedder: BaseEmbedder) -> int:
+    name = Path(path).name
+    pieces = splitter().split_documents(PyPDFLoader(path).load())
+    chunks = [
+        Chunk(
+            key=f"{name}:{doc_type}:{idx}",
+            text=piece.page_content,
+            payload={"source": name, "doc_type": doc_type, "page": piece.metadata.get("page", 0)},
         )
-        if idx % 50 == 0:
-            log.info("ingestion_progress", doc_type=doc_type, chunk=idx, total=len(chunks))
-
-    await _upsert_in_batches(points, store)
-    log.info("ingestion_complete", doc_type=doc_type, total_chunks=len(points))
-    return len(points)
-
-
-async def ingest_mitre_attack(
-    path: str, store: QdrantStore, embedder: BaseEmbedder
-) -> int:
-    await store.assert_embedding(embedding_tag())
-    source = Path(path)
-    if not source.exists():
-        log.info("downloading_mitre", url=MITRE_URL)
-        source.parent.mkdir(parents=True, exist_ok=True)
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.get(MITRE_URL)
-            r.raise_for_status()
-            source.write_bytes(r.content)
-
-    stix = json.loads(source.read_text())
-    techniques = [o for o in stix.get("objects", []) if o.get("type") == "attack-pattern"]
-    points: list[PointStruct] = []
-
-    for obj in techniques:
-        ext_refs = obj.get("external_references", [])
-        ext_id = next((r["external_id"] for r in ext_refs if r.get("source_name") == "mitre-attack"), "")
-        tactic = ", ".join(p.get("phase_name", "") for p in obj.get("kill_chain_phases", []))
-        platforms = ", ".join(obj.get("x_mitre_platforms", []))
-        desc = (obj.get("description") or "")[:1000]
-
-        text = (
-            f"Technique: {obj.get('name', '')}\n"
-            f"ID: {ext_id}\n"
-            f"Tactic: {tactic}\n"
-            f"Platforms: {platforms}\n"
-            f"Description: {desc}"
-        )
-        points.append(
-            PointStruct(
-                id=_point_id(f"mitre:{obj.get('id', ext_id)}"),
-                vector=[],
-                payload={
-                    "text": text,
-                    "source": source.name,
-                    "doc_type": "mitre_attack",
-                    "technique_id": ext_id,
-                    "name": obj.get("name", ""),
-                    "tactic": tactic,
-                    "platforms": platforms,
-                    "embedding_model": embedding_tag(),
-                    "chunk_index": len(points),
-                },
-            )
-        )
-
-    vectors = await embedder.embed_batch([str((p.payload or {})["text"]) for p in points])
-    for point, vector in zip(points, vectors):
-        point.vector = vector
-    await _upsert_in_batches(points, store)
-    log.info("mitre_ingested", total=len(points))
-    return len(points)
-
-
-async def ingest_owasp_llm(store: QdrantStore, embedder: BaseEmbedder) -> int:
-    dest = Path("data/sources/owasp_llm_top10.pdf")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if not dest.exists():
-        log.info("downloading_owasp", url=OWASP_LLM_URL)
-        # Stream to disk to handle large PDF (>90MB) within timeout
-        timeout = httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0)
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            async with client.stream("GET", OWASP_LLM_URL) as r:
-                r.raise_for_status()
-                with dest.open("wb") as f:
-                    async for chunk in r.aiter_bytes(chunk_size=65536):
-                        f.write(chunk)
-    return await ingest_pdf(str(dest), "owasp_llm", store, embedder)
+        for idx, piece in enumerate(pieces)
+    ]
+    count = await index_chunks(chunks, store, embedder)
+    log.info("ingestion_complete", doc_type=doc_type, total_chunks=count)
+    return count

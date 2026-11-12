@@ -8,12 +8,10 @@ from langgraph.prebuilt import create_react_agent
 from app.agent import investigation_prompts as P
 from app.agent.investigation_models import InvestigationState, ToolCallRecord
 from app.agent.tools import MAX_TOOL_CALLS, build_tools
-from app.api.deps import get_store
+from app.api.deps import get_retriever
 from app.core.llm import get_llm
 from app.core.logging import get_logger
 from app.models.schemas import SourceDoc
-from app.rag.chain import point_to_source
-from app.rag.embedder import get_embedder
 
 log = get_logger(__name__)
 MAX_RESEARCH_ITERATIONS = 2
@@ -30,13 +28,12 @@ def _extract_tool_calls(messages: list[BaseMessage]) -> list[ToolCallRecord]:
 
 async def _kb_sources(ioc: str) -> list[SourceDoc]:
     """Deterministic KB retrieval so every report carries citations, even if the LLM skips the tool."""
-    vector = await get_embedder().embed(ioc)
-    hits = await get_store().search(vector, k=5)
-    return [point_to_source(h) for h in hits]
+    found = await get_retriever().retrieve(ioc, k=5)
+    return [h.to_source() for h in found.hits]
 
 
 async def researcher_node(state: InvestigationState) -> dict[str, Any]:
-    tools = build_tools(get_store(), get_embedder())
+    tools = build_tools(get_retriever())
     agent = create_react_agent(get_llm(), tools, prompt=SystemMessage(content=P.RESEARCHER_SYSTEM))
     task = P.RESEARCHER_TASK.format(ioc_type=state["ioc_type"], ioc=state["ioc"])
     feedback = state.get("critic_feedback", "")

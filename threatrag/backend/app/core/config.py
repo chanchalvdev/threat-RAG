@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Vector Store
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str = ""
-    qdrant_collection: str = "threat_intel"
+    qdrant_collection: str = "threat_intel_v2"  # v2 = named dense + sparse vectors (hybrid search)
 
     # Embeddings
     embedding_provider: Literal["ollama", "gemini"] = "ollama"
@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     retrieval_k: int = 6
+
+    # Retrieval (Phase 7). Thresholds are cosine similarities calibrated on eval/golden.jsonl.
+    retrieval_mode: Literal["dense", "hybrid"] = "hybrid"
+    exact_match: bool = True              # look up T####(.###) / LLM## identifiers directly
+    reranker: Literal["none", "cross_encoder"] = "none"
+    reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    rerank_candidates: int = 20
+    max_chunks_per_ref: int = 2           # chunks of one technique allowed in the final context
+    abstain_below: float = 0.57           # best match weaker than this: answer "not in the knowledge base"
+    confident_above: float = 0.68
 
     # Observability
     debug: bool = False

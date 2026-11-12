@@ -63,8 +63,8 @@ documentation to respond to threats. ThreatRAG automates this by:
 
 | Source | Format | Size | Update Frequency |
 |---|---|---|---|
-| MITRE ATT&CK Enterprise | STIX JSON | ~3MB | Quarterly |
-| OWASP LLM Top 10 | PDF | ~2MB | Annual |
+| MITRE ATT&CK Enterprise | STIX JSON | ~45MB | Quarterly |
+| OWASP LLM Top 10 (2025) | Markdown from the OWASP repo | ~150KB | Annual |
 | NVD CVE Database | REST API | N/A | Real-time via tool |
 | Custom threat intel | PDF upload | Variable | On-demand |
 

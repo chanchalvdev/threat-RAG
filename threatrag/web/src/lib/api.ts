@@ -11,13 +11,15 @@ export interface SourceDoc {
   source: string
   doc_type: string
   score: number
+  ref_id?: string
 }
 
 export interface RAGResponse {
   answer: string
   sources: SourceDoc[]
   tokens_used: number
-  confidence: 'high' | 'medium' | 'low'
+  confidence: 'high' | 'low' | 'none'
+  abstained?: boolean
 }
 
 export interface IngestStatus {

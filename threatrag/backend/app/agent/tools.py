@@ -8,9 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.intel_tools import intel_tools
 from app.core.logging import get_logger
-from app.rag.embedder import BaseEmbedder
 from app.rag.sanitiser import sanitise_tool_input
-from app.rag.store import QdrantStore
+from app.rag.retriever import Retriever
 
 log = get_logger(__name__)
 MAX_TOOL_CALLS = 10
@@ -32,18 +31,15 @@ class ThreatRAGSearchTool(BaseTool):  # type: ignore[override]  # pydantic __rep
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    store: Any = Field(exclude=True)
-    embedder: Any = Field(exclude=True)
+    retriever: Any = Field(exclude=True)
 
     async def _arun(self, query: str, doc_types: list[str] | None = None) -> str:
-        clean = sanitise_tool_input(query)
-        vector = await self.embedder.embed(clean)
-        hits = await self.store.search(vector, k=6, doc_types=doc_types)
-        if not hits:
+        found = await self.retriever.retrieve(sanitise_tool_input(query), k=6, doc_types=doc_types)
+        if found.abstain or not found.hits:
             return "No relevant documents found in knowledge base."
         return "\n---\n".join(
             f"[Source: {h.payload.get('source', '')}]\n{h.payload.get('text', '')}"
-            for h in hits
+            for h in found.hits
         )
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
@@ -136,9 +132,9 @@ class TavilySearchTool(BaseTool):  # type: ignore[override]  # pydantic __replac
         raise NotImplementedError("Use async only")
 
 
-def build_tools(store: QdrantStore, embedder: BaseEmbedder) -> list[BaseTool]:
+def build_tools(retriever: Retriever) -> list[BaseTool]:
     return [
-        ThreatRAGSearchTool(store=store, embedder=embedder),
+        ThreatRAGSearchTool(retriever=retriever),
         NVDCVETool(),
         TavilySearchTool(),
         *intel_tools(),

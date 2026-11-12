@@ -11,29 +11,27 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.api.deps import get_chain, get_store
+from app.api.deps import get_chain, get_retriever, get_store
 from app.core.config import get_settings
 from app.evaluation.golden import GoldenItem, load_golden, unknown_ids
 from app.evaluation.harness import Answer, evaluate_answers, evaluate_retrieval
 from app.evaluation.report import answer_table, retrieval_table
 from app.evaluation.retrieval_metrics import Retrieved
 from app.models.schemas import QueryRequest
-from app.rag.embedder import get_embedder
 
 
 async def _retrieve(question: str, k: int) -> list[Retrieved]:
-    vector = await get_embedder().embed(question)
-    hits = await get_store().search(vector, k=k)
+    found = await get_retriever().retrieve(question, k=k)
     return [
-        Retrieved(technique_id=(h.payload or {}).get("technique_id", ""), doc_type=(h.payload or {}).get("doc_type", ""),
-                  text=(h.payload or {}).get("text", ""), score=h.score)
-        for h in hits
+        Retrieved(technique_id=h.payload.get("technique_id", ""), doc_type=h.payload.get("doc_type", ""),
+                  text=h.payload.get("text", ""), score=found.top_score)
+        for h in found.hits
     ]
 
 
 async def _answer(question: str) -> Answer:
     response = await get_chain().query(QueryRequest(question=question))
-    return Answer(text=response.answer, contexts=[s.text for s in response.sources])
+    return Answer(text=response.answer, contexts=[s.text for s in response.sources], abstained=response.abstained)
 
 
 def sample(items: list[GoldenItem], n: int) -> list[GoldenItem]:
@@ -59,6 +57,7 @@ async def main(args: argparse.Namespace) -> None:
     result: dict = {
         "label": args.label, "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "collection": s.qdrant_collection, "embedding": f"{s.embedding_provider}:{s.embedding_model}",
+        "retrieval_mode": s.retrieval_mode, "exact_match": s.exact_match, "reranker": s.reranker,
         "retrieval": await evaluate_retrieval(items, _retrieve, args.k),
     }
     print(f"## Retrieval — {args.label}\n\n{retrieval_table(result['retrieval'])}\n")

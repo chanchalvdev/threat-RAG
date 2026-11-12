@@ -72,11 +72,10 @@ async def test_evaluate_retrieval_summarises_by_category_and_skips_unanswerable(
     assert "id_lookup" in retrieval_table(result)
 
 
-def test_refusal_uses_explicit_flag_before_heuristic():
+def test_refusal_is_a_pipeline_abstention_or_a_model_refusal():
     assert looks_like_refusal(Answer(text="The context does not contain that."))
-    assert not looks_like_refusal(Answer(text="T1110.003 is Password Spraying."))
-    assert not looks_like_refusal(Answer(text="The context does not contain that.", abstained=False))
     assert looks_like_refusal(Answer(text="anything", abstained=True))
+    assert not looks_like_refusal(Answer(text="T1110.003 is Password Spraying."))
 
 
 async def test_evaluate_answers_scores_grounding_and_abstention():
@@ -98,3 +97,12 @@ async def test_evaluate_answers_scores_grounding_and_abstention():
 def test_sample_takes_from_every_category_first():
     picked = sample(load_golden(GOLDEN), 5)
     assert len({i.category for i in picked}) == 5
+
+
+async def test_retry_survives_transient_provider_errors():
+    from app.evaluation.harness import _retry
+
+    call = AsyncMock(side_effect=[RuntimeError("503"), "ok"])
+    assert await _retry(call, base_delay_s=0) == "ok"
+    with pytest.raises(RuntimeError):
+        await _retry(AsyncMock(side_effect=RuntimeError("down")), attempts=2, base_delay_s=0)

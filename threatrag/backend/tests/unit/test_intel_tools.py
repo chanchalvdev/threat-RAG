@@ -19,7 +19,7 @@ def _settings(key: str = "") -> MagicMock:
 
 
 def test_build_tools_includes_intel_tools():
-    names = [t.name for t in build_tools(MagicMock(), MagicMock())]
+    names = [t.name for t in build_tools(MagicMock())]
     assert {"ip_intel_lookup", "domain_intel_lookup", "hash_intel_lookup", "cve_exploitation_lookup"} <= set(names)
 
 

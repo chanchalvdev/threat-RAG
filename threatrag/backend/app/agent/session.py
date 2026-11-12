@@ -3,9 +3,8 @@ from datetime import datetime, timedelta
 
 from app.agent.react_agent import ThreatIntelAgent
 from app.agent.tools import build_tools
-from app.api.deps import get_store
+from app.api.deps import get_retriever
 from app.core.logging import get_logger
-from app.rag.embedder import get_embedder
 
 log = get_logger(__name__)
 SESSION_TTL_MINUTES = 30
@@ -50,9 +49,7 @@ class SessionManager:
                 oldest = min(self._sessions.items(), key=lambda x: x[1][1])
                 del self._sessions[oldest[0]]
 
-            store = get_store()
-            embedder = get_embedder()
-            tools = build_tools(store, embedder)
+            tools = build_tools(get_retriever())
             agent = ThreatIntelAgent(tools=tools)
             self._sessions[session_id] = (agent, datetime.utcnow())
             log.info("session_created", session_id=session_id)

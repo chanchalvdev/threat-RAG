@@ -75,7 +75,9 @@ KIMCHI_API_KEY=<optional fallback key>
 KIMCHI_BASE_URL=https://llm.kimchi.dev/openai/v1
 LLM_MODEL=kimi-k2.7
 QDRANT_URL=http://localhost:6333
-QDRANT_COLLECTION=threat_intel
+QDRANT_COLLECTION=threat_intel_v2
+RETRIEVAL_MODE=hybrid
+RERANKER=none
 OLLAMA_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
 DATABASE_URL=postgresql://threatrag:threatrag@localhost:5435/threatrag
@@ -112,6 +114,8 @@ pytest tests/integration -v -m integration
 
 ## Key Decisions
 - Gemini is the primary LLM and Kimchi the fallback (not Anthropic) — use `app/core/llm.py:get_llm`, which builds `langchain_openai.ChatOpenAI` with a custom base_url
-- Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims
+- Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims, with `search_query:` / `search_document:` prefixes
+- Retrieval goes through `app/rag/retriever.py` (exact ID lookup → dense + lexical RRF → optional rerank → abstain); never call `store.search` from features
+- Retrieval, prompt or model changes must be measured with `python -m app.scripts.run_eval` before merging
 - All streaming via SSE — WebSocket only in Phase 3 for agent progress
 - Security hardening per OWASP LLM Top 10 is built-in, not bolted on

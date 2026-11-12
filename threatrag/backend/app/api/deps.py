@@ -3,6 +3,8 @@ from functools import lru_cache
 from app.core.config import get_settings
 from app.rag.chain import ThreatRAGChain
 from app.rag.embedder import get_embedder
+from app.rag.reranker import get_reranker
+from app.rag.retriever import Retriever
 from app.rag.store import QdrantStore
 
 
@@ -18,7 +20,10 @@ def get_store() -> QdrantStore:
 
 
 @lru_cache
+def get_retriever() -> Retriever:
+    return Retriever(store=get_store(), embedder=get_embedder(), reranker=get_reranker())
+
+
+@lru_cache
 def get_chain() -> ThreatRAGChain:
-    store = get_store()
-    embedder = get_embedder()
-    return ThreatRAGChain(store=store, embedder=embedder)
+    return ThreatRAGChain(retriever=get_retriever())

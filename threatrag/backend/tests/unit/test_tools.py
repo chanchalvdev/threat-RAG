@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from tests.conftest import make_point
+
 from app.agent.tools import NVDCVETool, TavilySearchTool, ThreatRAGSearchTool
 from app.rag.sanitiser import is_injection, sanitise_tool_input
 
@@ -64,24 +66,17 @@ async def test_nvd_tool_invalid_format():
 
 
 @pytest.mark.asyncio
-async def test_rag_search_tool_returns_sources(mock_store, mock_embedder):
-    hit = MagicMock()
-    hit.payload = {"text": "T1110 brute force technique", "source": "mitre.json"}
-    mock_store.search.return_value = [hit]
-
-    tool = ThreatRAGSearchTool(store=mock_store, embedder=mock_embedder)
-    result = await tool._arun("brute force")
-
+async def test_rag_search_tool_returns_sources(mock_store, retriever):
+    mock_store.candidates.return_value = ([make_point("a", "T1110 brute force technique", source="mitre.json")], [])
+    result = await ThreatRAGSearchTool(retriever=retriever)._arun("brute force")
     assert "T1110" in result
     assert "mitre.json" in result
 
 
 @pytest.mark.asyncio
-async def test_rag_search_no_results(mock_store, mock_embedder):
-    mock_store.search.return_value = []
-    tool = ThreatRAGSearchTool(store=mock_store, embedder=mock_embedder)
-    result = await tool._arun("something not in kb")
-    assert "no relevant" in result.lower() or "not found" in result.lower()
+async def test_rag_search_no_results(retriever):
+    result = await ThreatRAGSearchTool(retriever=retriever)._arun("something not in kb")
+    assert "no relevant" in result.lower()
 
 
 @pytest.mark.asyncio

@@ -23,11 +23,23 @@ _TECHNIQUE = re.compile(r"\bT\d{4}(?:\.\d{3})?\b")
 class Answer(BaseModel):
     text: str
     contexts: list[str] = []
-    abstained: bool | None = None  # None: the pipeline has no explicit abstention signal
+    abstained: bool = False  # the pipeline declined before generating
 
 
 def looks_like_refusal(answer: Answer) -> bool:
-    return answer.abstained if answer.abstained is not None else bool(_REFUSAL.search(answer.text[:600]))
+    """Declined at retrieval, or the model itself said the context does not cover the question."""
+    return answer.abstained or bool(_REFUSAL.search(answer.text[:600]))
+
+
+async def _retry(call: Callable[[], Awaitable[Any]], attempts: int = 4, base_delay_s: float = 5.0) -> Any:
+    """Providers shed load with 429/503; one busy minute must not void a whole evaluation run."""
+    for attempt in range(attempts):
+        try:
+            return await call()
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            await asyncio.sleep(base_delay_s * 2**attempt)
 
 
 def _summary(rows: list[dict[str, Any]], k: int) -> dict[str, float]:
@@ -65,7 +77,7 @@ async def evaluate_retrieval(items: list[GoldenItem], retrieve: RetrieveFn, k: i
 async def evaluate_answers(items: list[GoldenItem], answer: AnswerFn, delay_s: float = 0.0) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for item in items:
-        result = await answer(item.question)
+        result = await _retry(lambda item=item: answer(item.question))  # type: ignore[misc]
         refused = looks_like_refusal(result)
         row: dict[str, Any] = {"id": item.id, "category": item.category, "answerable": item.answerable, "refused": refused}
         if item.answerable and not refused:
@@ -73,7 +85,7 @@ async def evaluate_answers(items: list[GoldenItem], answer: AnswerFn, delay_s: f
             if item.expected_ids:
                 row["id_correct"] = bool(set(_TECHNIQUE.findall(result.text)) & set(item.expected_ids))
             if result.contexts:
-                row["faithfulness"] = await judge.faithfulness(result.text, result.contexts)
+                row["faithfulness"] = await _retry(lambda r=result: judge.faithfulness(r.text, r.contexts))  # type: ignore[misc]
         rows.append(row)
         if delay_s:
             await asyncio.sleep(delay_s)

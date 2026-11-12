@@ -31,9 +31,9 @@ async def test_stats_tolerates_facet_failure(client):
     assert body == {"collection": "threat_intel", "total_vectors": 5, "doc_type_counts": {}}
 
 
-@pytest.mark.parametrize("path,runner", [("mitre", "_run_mitre"), ("owasp", "_run_owasp")])
-async def test_ingest_job_is_pollable_before_background_task_runs(client, path, runner):
-    with patch.object(ingest_routes, runner, new=AsyncMock()):
+@pytest.mark.parametrize("path", ["mitre", "owasp"])
+async def test_ingest_job_is_pollable_before_background_task_runs(client, path):
+    with patch.object(ingest_routes, "_run", new=AsyncMock()):
         job_id = (await client.post(f"/api/v1/ingest/{path}")).json()["job_id"]
     assert (await client.get(f"/api/v1/ingest/status/{job_id}")).json()["status"] == "pending"
 
@@ -59,24 +59,19 @@ async def test_upload_too_large_413(client):
 
 
 async def test_upload_accepted_writes_basename_only(client, tmp_path):
-    with patch.object(ingest_routes, "DATA_DIR", tmp_path), patch.object(ingest_routes, "_run_pdf", new=AsyncMock()):
+    with patch.object(ingest_routes, "DATA_DIR", tmp_path), patch.object(ingest_routes, "_run", new=AsyncMock()):
         r = await client.post("/api/v1/ingest/pdf", files={"file": ("../../x.pdf", b"%PDF-1.7")})
     assert r.status_code == 202
     assert (tmp_path / "x.pdf").exists()
 
 
 async def test_run_jobs_record_failure():
-    store = MagicMock()
-    with patch.object(ingest_routes, "ingest_pdf", new=AsyncMock(side_effect=ValueError("bad"))), \
-            patch.object(ingest_routes, "get_embedder"):
-        await ingest_routes._run_pdf("j1", "p", "custom", store)
+    await ingest_routes._run("j1", AsyncMock(side_effect=ValueError("bad")))
     assert ingest_routes._jobs["j1"].status == "failed" and ingest_routes._jobs["j1"].error == "bad"
 
 
 async def test_run_jobs_record_success():
-    with patch.object(ingest_routes, "ingest_mitre_attack", new=AsyncMock(return_value=7)), \
-            patch.object(ingest_routes, "get_embedder"):
-        await ingest_routes._run_mitre("j2", MagicMock())
+    await ingest_routes._run("j2", AsyncMock(return_value=7))
     assert ingest_routes._jobs["j2"].chunks_processed == 7
 
 

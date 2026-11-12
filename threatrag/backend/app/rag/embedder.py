@@ -22,17 +22,23 @@ class OllamaEmbedder(BaseEmbedder):
     def __init__(self, base_url: str, model: str):
         self._url = f"{base_url}/api/embeddings"
         self._model = model
+        # nomic-embed-text is trained with task prefixes; queries and documents use different ones.
+        self._prefixed = "nomic" in model
 
-    async def embed(self, text: str) -> list[float]:
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(self._url, json={"model": self._model, "prompt": text})
+    async def _call(self, text: str, prefix: str) -> list[float]:
+        prompt = f"{prefix}: {text}" if self._prefixed else text
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(self._url, json={"model": self._model, "prompt": prompt})
             r.raise_for_status()
             return r.json()["embedding"]
+
+    async def embed(self, text: str) -> list[float]:
+        return await self._call(text, "search_query")
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         async def _one(t: str) -> list[float]:
             async with _BATCH_SEMAPHORE:
-                return await self.embed(t)
+                return await self._call(t, "search_document")
 
         return list(await asyncio.gather(*[_one(t) for t in texts]))
 

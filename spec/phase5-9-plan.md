@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 5 | `feat/phase5-ship-and-show` | Repo packaging, docs, hygiene | **done** 2026-11-11 |
 | 6 | `feat/phase6-eval-harness` | Golden set + offline evaluation | **done** 2026-11-12 |
-| 7 | `feat/phase7-hybrid-retrieval` | Hybrid search, rerank, abstention, richer corpus | planned |
+| 7 | `feat/phase7-hybrid-retrieval` | Hybrid search, rerank, abstention, richer corpus | **done** 2026-11-12 |
 | 8 | `feat/phase8-guardrails-observability` | Injection guard, IOC-safe sanitiser, telemetry | planned |
 | 9 | `feat/phase9-production-shape` | Shared state, identity, integration/E2E tests, STIX export | planned |
 
@@ -96,6 +96,33 @@ which is why a quarter of answerable questions go unanswered. Raw rows: `eval/re
 
 Acceptance: exact-ID recall@6 ≥ 0.95 and hit@6 improves over the Phase 6 baseline; the
 unanswerable questions abstain.
+
+### Phase 7 result — ablation on the new corpus (697 live techniques → 3,379 chunks; OWASP 2025 → 127)
+
+| Configuration | hit@1 | hit@3 | hit@6 | MRR | id_lookup hit@6 |
+|---|---|---|---|---|---|
+| Phase 1 baseline (old corpus, dense) | 0.45 | 0.73 | 0.79 | 0.58 | 0.00 |
+| New corpus, dense only | 0.57 | 0.68 | 0.71 | 0.63 | 0.00 |
+| + lexical fusion (hybrid) | 0.68 | 0.88 | 0.95 | 0.79 | 1.00 |
+| + exact identifier lookup (**default**) | 0.86 | 0.91 | 0.95 | 0.89 | 1.00 |
+| + cross-encoder rerank (opt-in) | 0.89 | 0.96 | 0.98 | 0.93 | 1.00 |
+
+Findings worth keeping:
+- Richer chunks alone made dense retrieval *worse* at hit@6 (0.79 → 0.71): four sections per
+  technique compete for six slots. Fusion, not the corpus, is what recovered it.
+- Exact lookup changes ranking, not recall: hybrid already finds the ID in the top 6, exact
+  lookup puts it first (id_lookup hit@1 0.17 → 1.00).
+- Rerank costs ~1.1 s per query on CPU (median 1,190 ms vs 82 ms), so it is opt-in.
+- A larger candidate pool (24 vs 20) lost two paraphrase questions under fusion; pool stays at 20.
+- Dense cosine does not cleanly separate unanswerable questions (0.51–0.64) from the weakest
+  answerable ones (0.60+). `ABSTAIN_BELOW=0.57` is a cheap first gate that skips the LLM for
+  clearly off-topic questions with no false abstentions on the golden set; the prompt-level
+  refusal remains the second gate.
+- Remaining miss: "stopped backup and database services before encrypting" retrieves Inhibit
+  System Recovery and Data Encrypted for Impact, not Service Stop (T1489).
+
+Migration: the collection schema changed (named dense + sparse vectors). Set
+`QDRANT_COLLECTION=threat_intel_v2` and re-ingest; the old collection is refused with a clear error.
 
 ## Phase 8 — Guardrails and observability
 

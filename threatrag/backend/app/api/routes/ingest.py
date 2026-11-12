@@ -1,5 +1,6 @@
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
@@ -9,7 +10,9 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.models.schemas import IngestAccepted, IngestJob, IngestStats
 from app.rag.embedder import get_embedder
-from app.rag.ingestion import ingest_mitre_attack, ingest_owasp_llm, ingest_pdf
+from app.rag.ingest_mitre import ingest_mitre_attack
+from app.rag.ingest_owasp import ingest_owasp_llm
+from app.rag.ingestion import ingest_pdf
 from app.rag.store import QdrantStore
 
 log = get_logger(__name__)
@@ -29,36 +32,21 @@ def _safe_pdf_name(filename: str | None) -> str:
     return name
 
 
-async def _run_pdf(job_id: str, path: str, doc_type: str, store: QdrantStore) -> None:
+async def _run(job_id: str, work: Callable[[], Awaitable[int]]) -> None:
     _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
     try:
-        embedder = get_embedder()
-        count = await ingest_pdf(path, doc_type, store, embedder)
+        count = await work()
         _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
     except Exception as exc:
         log.error("ingest_failed", job_id=job_id, error=str(exc))
         _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
 
 
-async def _run_mitre(job_id: str, store: QdrantStore) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
-    try:
-        embedder = get_embedder()
-        path = str(DATA_DIR / "mitre_attack.json")
-        count = await ingest_mitre_attack(path, store, embedder)
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
-    except Exception as exc:
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
-
-
-async def _run_owasp(job_id: str, store: QdrantStore) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
-    try:
-        embedder = get_embedder()
-        count = await ingest_owasp_llm(store, embedder)
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
-    except Exception as exc:
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
+def _start(bg: BackgroundTasks, work: Callable[[], Awaitable[int]]) -> str:
+    job_id = str(uuid.uuid4())
+    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")  # visible to /status before the task starts
+    bg.add_task(_run, job_id, work)
+    return job_id
 
 
 @router.post(
@@ -87,9 +75,7 @@ async def ingest_pdf_route(
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     dest = DATA_DIR / name
     dest.write_bytes(data)
-    job_id = str(uuid.uuid4())
-    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
-    bg.add_task(_run_pdf, job_id, str(dest), doc_type, store)
+    job_id = _start(bg, lambda: ingest_pdf(str(dest), doc_type, store, get_embedder()))
     return IngestAccepted(job_id=job_id, filename=name)
 
 
@@ -97,29 +83,24 @@ async def ingest_pdf_route(
     "/mitre",
     response_model=IngestAccepted,
     status_code=202,
-    summary="Ingest the bundled MITRE ATT&CK dataset",
-    description="Reads data/sources/mitre_attack.json, chunks and embeds it in the background.",
+    summary="Ingest MITRE ATT&CK Enterprise",
+    description="Downloads the STIX bundle if it is not cached, then indexes every live technique with its "
+    "mitigations, detections and known users in the background.",
 )
 async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    job_id = str(uuid.uuid4())
-    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
-    bg.add_task(_run_mitre, job_id, store)
-    return IngestAccepted(job_id=job_id)
+    path = str(DATA_DIR / "mitre_attack.json")
+    return IngestAccepted(job_id=_start(bg, lambda: ingest_mitre_attack(path, store, get_embedder())))
 
 
 @router.post(
     "/owasp",
     response_model=IngestAccepted,
     status_code=202,
-    summary="Ingest the bundled OWASP LLM Top 10 dataset",
-    description="Reads data/sources/owasp_llm_top10.pdf, chunks and embeds it in the background.",
+    summary="Ingest the OWASP Top 10 for LLM Applications (2025)",
+    description="Fetches the ten risk pages from the OWASP project repository and indexes them in the background.",
 )
 async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
-    job_id = str(uuid.uuid4())
-    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
-    bg.add_task(_run_owasp, job_id, store)
-    return IngestAccepted(job_id=job_id)
+    return IngestAccepted(job_id=_start(bg, lambda: ingest_owasp_llm(store, get_embedder())))
 
 
 @router.get(

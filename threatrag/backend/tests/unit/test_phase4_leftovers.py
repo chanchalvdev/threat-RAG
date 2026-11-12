@@ -33,8 +33,8 @@ async def test_assert_embedding_allows_empty_collection():
     await _store([]).assert_embedding("gemini:text-embedding-004")
 
 
-async def test_assert_embedding_treats_untagged_points_as_nomic():
-    point = MagicMock(payload={"text": "x"})
+async def test_assert_embedding_rejects_a_different_vector_space():
+    point = MagicMock(payload={"text": "x", "embedding_model": "ollama:nomic-embed-text"})
     await _store([point]).assert_embedding("ollama:nomic-embed-text")
     with pytest.raises(EmbeddingMismatchError, match="QDRANT_COLLECTION"):
         await _store([point]).assert_embedding("gemini:text-embedding-004")
