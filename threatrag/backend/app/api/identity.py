@@ -49,6 +49,19 @@ async def rate_limit(request: Request, identity: Identity = Depends(current_iden
         raise HTTPException(status_code=429, detail="Rate limit exceeded", headers={"Retry-After": str(retry)})
 
 
+async def llm_budget() -> None:
+    """Global daily ceiling on requests that call a model, for a public demo: bounds spend no
+    matter how many visitors or addresses there are. Counts attempts, not tokens."""
+    cap = get_settings().llm_daily_request_cap
+    if cap <= 0:
+        return
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    if await get_state().incr(f"llm-budget:{day}", ttl_s=2 * 86400) > cap:
+        retry = 86400 - int(time.time() % 86400)
+        raise HTTPException(status_code=429, detail="Daily model budget for this demo is used up; try again tomorrow",
+                            headers={"Retry-After": str(retry)})
+
+
 def mint_token(sub: str, hours: float = 8.0) -> str:
     secret = get_settings().jwt_secret
     if not secret:

@@ -71,7 +71,7 @@ export interface EvaluationRecord {
 
 export interface RuntimeMetrics {
   routes: Record<string, { requests: number; errors_5xx: number; p50_ms: number; p95_ms: number }>
-  llm: { calls: number; tokens_in: number; tokens_out: number; p50_ms: number; p95_ms: number; estimated_cost_usd: number | null }
+  llm: { calls: number; tokens_in: number; tokens_out: number; p50_ms: number; p95_ms: number; estimated_cost_usd: number | null; primary_model?: string | null }
   counters: Record<string, number>
 }
 

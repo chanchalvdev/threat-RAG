@@ -3,81 +3,26 @@ import uuid
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.react_agent import as_history
 from app.agent.session import session_manager
-from app.api.identity import Identity, current_identity
+from app.api.identity import Identity, current_identity, llm_budget
 from app.api.security import ensure_safe
 from app.core.llm import get_llm
 from app.core.logging import get_logger
+from app.models.chat_schemas import (
+    ChatHistoryMessage, ChatRequest, ChatStatusResponse, SuggestionRequest, SuggestionsResponse,
+)
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 _LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
-
-
-class ChatRequest(BaseModel):
-    question: str = Field(..., min_length=2, max_length=4000)
-    session_id: str | None = None
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "question": "What CVEs affect Apache Log4j?",
-                "session_id": None,
-            }
-        }
-    )
-
-
-class SuggestionRequest(BaseModel):
-    last_question: str
-    last_answer: str
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "last_question": "What CVEs affect Apache Log4j?",
-                "last_answer": "CVE-2021-44228 (Log4Shell) is a critical RCE in Apache Log4j 2.",
-            }
-        }
-    )
-
-
-class ChatHistoryMessage(BaseModel):
-    role: str
-    content: str
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"role": "user", "content": "What CVEs affect Apache Log4j?"}}
-    )
-
-
-class ChatStatusResponse(BaseModel):
-    status: str
-
-    model_config = ConfigDict(json_schema_extra={"example": {"status": "cleared"}})
-
-
-class SuggestionsResponse(BaseModel):
-    suggestions: list[str]
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "suggestions": [
-                    "What versions of Log4j are affected by CVE-2021-44228?",
-                    "How does Log4Shell map to MITRE ATT&CK techniques?",
-                    "What mitigations are recommended for Log4Shell?",
-                ]
-            }
-        }
-    )
 
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Chat with the ReAct agent, streaming via SSE",
     description="Streams `thought`, `tool_call`, `tool_result`, `chunk`, `done` and `error` events. "
     "Pass the returned `X-Session-ID` back as `session_id` to continue the conversation.",
@@ -134,6 +79,7 @@ async def clear_history(session_id: str, identity: Identity = Depends(current_id
 
 @router.post(
     "/suggestions",
+    dependencies=spends,
     response_model=SuggestionsResponse,
     summary="Generate follow-up question suggestions",
     description="Given the last Q&A exchange, asks the LLM for 3 relevant follow-up security questions.",

@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.api.identity import llm_budget
 from app.api.deps import get_chain
 from app.api.security import ensure_safe
 from app.core.logging import get_logger
@@ -11,10 +12,12 @@ from app.rag.chain import ThreatRAGChain
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/query", tags=["query"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 
 
 @router.post(
     "",
+    dependencies=spends,
     response_model=RAGResponse,
     summary="Ask a question against the RAG knowledge base",
     description="Runs retrieval-augmented generation over the ingested MITRE ATT&CK / "
@@ -33,6 +36,7 @@ async def query(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Ask a question and stream the answer via SSE",
     description="Same as POST /query but streams Server-Sent Events: `source` events "
     "(one per retrieved document), then `chunk` events (answer tokens), then a final `done` event.",

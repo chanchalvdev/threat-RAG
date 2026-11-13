@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.api.identity import llm_budget
 from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
 from app.api.deps import get_store
 from app.db import reports as repo
@@ -9,6 +10,7 @@ from app.services.investigation_service import investigate, investigate_sse
 from app.services.stix_export import build_bundle
 
 router = APIRouter(prefix="/investigate", tags=["investigate"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 
 _SSE_EXAMPLE = (
     'data: {"type": "node_start", "node": "researcher", "iteration": 1}\n\n'
@@ -28,6 +30,7 @@ def _require_db() -> None:
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Run a multi-agent investigation, streaming via SSE",
     description="Runs the Researcher → Critic → Reporter LangGraph loop for an IOC. Streams "
     "`node_start`, `tool_call`, `node_done`, `routing`, `report_chunk`, then `done` "
@@ -44,6 +47,7 @@ async def investigate_stream(req: InvestigationRequest) -> StreamingResponse:
 
 @router.post(
     "/save",
+    dependencies=spends,
     response_model=InvestigationReport,
     summary="Run an investigation to completion and persist the report",
 )

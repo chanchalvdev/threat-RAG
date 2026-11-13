@@ -4,6 +4,12 @@ Retrieval-augmented threat intelligence for SOC analysts: cited answers over MIT
 the OWASP LLM Top 10, a tool-using chat agent, and a Researcher → Critic → Reporter
 investigation pipeline that turns an indicator (CVE, IP, domain, hash) into a structured report.
 
+![ThreatRAG demo: a cited answer, a follow-up that uses conversation memory, and live telemetry](docs/diagrams/threatrag-demo.gif)
+
+*Recorded against the local stack: a question answered with six cited ATT&CK passages and a
+knowledge-base tool call, a follow-up ("that technique") resolved from memory, and the runtime
+telemetry page.*
+
 ![ThreatRAG architecture](docs/diagrams/threatrag-architecture.gif)
 
 ## What it does
@@ -152,6 +158,9 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
   if the report cites it *and* it exists in the ingested corpus.
 - **Idempotent ingestion.** Point IDs are `uuid5` of the source key; re-ingesting overwrites.
   Points are tagged with their embedding model and mixing vector spaces is refused at startup.
+- **A hard ceiling for a public demo.** `LLM_DAILY_REQUEST_CAP` bounds model-calling requests per
+  UTC day across all callers, on top of the per-visitor rate limit, so a public URL cannot drain
+  the provider quota.
 - **Readiness that tells the truth.** `/health/ready` runs a one-token completion, because a
   provider can list models while refusing every request.
 - **Small files.** Every source file is ≤ 150 lines with one responsibility.
@@ -184,6 +193,11 @@ Tracked with their fixes in [spec/phase5-9-plan.md](spec/phase5-9-plan.md):
 - Rate limiting is a fixed window; a burst across a window boundary can reach twice the limit.
 - Playwright tests mock the API; nothing drives a browser against the full compose stack.
 - Two of 20 evaluated answers lacked a citation tag.
+- Source cards show raw cosine similarity as "relevance", so an exact ID match can look weaker
+  (about 50%) than a loosely related passage (about 60%).
+- Threat-group attribution comes only from ATT&CK intrusion sets; campaigns are not ingested, so
+  for "which groups use T1558.003" the agent falls back to web search and names groups the
+  knowledge base cannot confirm.
 - Qdrant in compose is v1.13 while the client is 1.18 (the version check is disabled, not resolved).
 
 ## Repository layout

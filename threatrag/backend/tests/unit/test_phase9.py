@@ -187,3 +187,16 @@ async def test_readiness_is_ready_when_one_llm_provider_works_and_names_timeouts
 
     httpx_mock.add_exception(httpx.ReadTimeout(""), url="http://gem/chat/completions")
     assert await readiness._probe_llm("http://gem", "g", "m") == "error: ReadTimeout"
+
+
+async def test_daily_model_budget_caps_model_routes_only(client):
+    capped = _settings(llm_daily_request_cap=1, rate_limit_per_minute=0)
+    with patch.object(identity, "get_settings", return_value=capped), \
+            patch("app.api.routes.chat.get_llm", return_value=MagicMock(ainvoke=AsyncMock(return_value=MagicMock(content="a\nb")))):
+        body = {"last_question": "q?", "last_answer": "a"}
+        first = await client.post("/api/v1/chat/suggestions", json=body)
+        second = await client.post("/api/v1/chat/suggestions", json=body)
+        free = await client.get("/api/v1/metrics")          # does not call a model: never counted
+    assert first.status_code == 200 and second.status_code == 429
+    assert "budget" in second.json()["detail"] and int(second.headers["retry-after"]) > 0
+    assert free.status_code == 200

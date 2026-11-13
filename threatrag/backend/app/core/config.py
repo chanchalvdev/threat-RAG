@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = 25
     jwt_secret: str = ""               # when set, /api/v1/* requires an HS256 bearer token; sessions are per subject
     rate_limit_per_minute: int = 120   # per identity (or per client address when anonymous); 0 disables
+    llm_daily_request_cap: int = 0     # all callers together, per UTC day, on routes that call a model; 0 disables
     redis_url: str = ""                # empty = in-process state (single worker, lost on restart)
 
     # Vector Store

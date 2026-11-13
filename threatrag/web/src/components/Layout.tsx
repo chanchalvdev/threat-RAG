@@ -3,6 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { Shield, MessageSquare, Database, Search, BarChart2, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '../lib/cn'
 import HealthDot from './HealthDot'
+import { useQuery } from '@tanstack/react-query'
+import { getRuntimeMetrics } from '../lib/api'
 
 const NAV = [
   { to: '/chat',           label: 'Chat',           desc: 'Ask the threat intel assistant',      Icon: MessageSquare },
@@ -15,6 +17,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const { pathname } = useLocation()
   const current = NAV.find(n => pathname.startsWith(n.to)) ?? NAV[0]
+  const { data: metrics } = useQuery({ queryKey: ['runtime-metrics'], queryFn: getRuntimeMetrics, refetchInterval: 60_000 })
+  const model = metrics?.llm.primary_model
 
   return (
     <div className="flex h-screen bg-surface-950 text-slate-100">
@@ -68,9 +72,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-slate-500 truncate">{current.desc}</p>
           </div>
           <div className="flex items-center gap-4 shrink-0">
-            <span className="hidden sm:inline text-[11px] font-mono text-slate-500 bg-surface-800 border border-line rounded-md px-2 py-1">
-              kimi-k2-5
-            </span>
+            {model && (
+              <span title="Primary model configured on the backend"
+                className="hidden sm:inline text-[11px] font-mono text-slate-500 bg-surface-800 border border-line rounded-md px-2 py-1">
+                {model}
+              </span>
+            )}
             <HealthDot />
           </div>
         </header>

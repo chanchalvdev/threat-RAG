@@ -82,4 +82,4 @@ async def test_metrics_route_reports_requests_by_route_template(registry):
         await client.get("/health")
         body = (await client.get("/api/v1/metrics")).json()
     assert body["routes"]["GET /health"]["requests"] == 1
-    assert set(body) == {"routes", "llm", "counters"}
+    assert set(body) == {"routes", "llm", "counters"} and "primary_model" in body["llm"]

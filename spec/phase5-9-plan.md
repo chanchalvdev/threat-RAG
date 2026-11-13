@@ -212,6 +212,11 @@ Found during Phase 9:
 | G35 | JWTs are HS256 with a shared secret and no revocation; there is no user store or OIDC | open (out of scope) |
 | G36 | Playwright runs against a mocked API; there is no browser test against the full compose stack | open |
 | G37 | CI had never run on GitHub | **fixed** 2026-11-13: all four jobs pass on the pull request |
+| G39 | Header badge hard-coded a model (`kimi-k2-5`) that no longer exists | **fixed**: shows the configured model from `/api/v1/metrics` |
+| G40 | No spend ceiling for a public deployment; behind a proxy every visitor would share one rate-limit bucket | **fixed**: `LLM_DAILY_REQUEST_CAP`; image runs uvicorn with `--proxy-headers` (set `FORWARDED_ALLOW_IPS`) |
+| G41 | Source cards label raw cosine similarity as "relevance"; exact ID matches show ~50% next to unrelated passages at ~60% | open |
+| G42 | Threat-group attribution covers intrusion sets only; campaigns are not ingested, so group questions fall back to web search | open |
+| G43 | No public deployment: needs a host for the API plus Qdrant, Postgres and Redis | open (needs an account) |
 | G38 | The web image never built: its Dockerfile copied `../infra/nginx.conf` from outside the build context | **fixed**: `nginx.conf` lives in `web/`; found by the first CI run |
 
 ---

@@ -33,4 +33,6 @@ USER app
 EXPOSE 8000
 
 # Cloud Run/Render inject $PORT; default to 8000 locally
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Behind a hosting proxy, --proxy-headers makes rate limits see the visitor's address instead of the
+# proxy's. Set FORWARDED_ALLOW_IPS to the proxy's address (uvicorn reads it); the default trusts none.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
