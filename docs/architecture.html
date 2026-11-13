@@ -97,7 +97,7 @@ td.id { font-family: var(--mono); color: var(--muted); white-space: nowrap; font
     </div>
     <div class="blocker" role="note">
       <span class="pill open">NOT YET DONE</span>
-      <p><b>Nothing has been pushed.</b> The phase branches exist locally only, so the CI workflow has never run on GitHub. Kimchi (the fallback provider) still returns HTTP 402, so the fallback path is covered by unit tests, not by a live run.</p>
+      <p><b>Fallback provider is untested live.</b> Kimchi still returns HTTP 402, so the fallback path is covered by unit tests only. CI (lint, types, unit, integration, web, Playwright, image builds, Trivy) passes on GitHub.</p>
     </div>
   </section>
 
@@ -272,7 +272,8 @@ flowchart LR
           <tr><td class="id">G32–G33</td><td>Chat page never reached the agent; readiness reported a working model as failed</td><td><span class="pill done">fixed</span></td></tr>
           <tr><td class="id">G31</td><td>Langfuse tracing never verified against a live project</td><td><span class="pill open">open</span></td></tr>
           <tr><td class="id">G34–G35</td><td>Fixed-window rate limit; shared-secret tokens with no user store or revocation</td><td><span class="pill open">open</span></td></tr>
-          <tr><td class="id">G36–G37</td><td>No browser test against the full stack; CI has never run on GitHub</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G37–G38</td><td>CI had never run on GitHub; the web image never built</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G36</td><td>No browser test against the full stack</td><td><span class="pill open">open</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -284,7 +285,6 @@ flowchart LR
       <div class="panel">
         <h3>To finish what is here</h3>
         <ul>
-          <li>Push the phase branches, open the pull requests and get the workflow green on GitHub</li>
           <li>Record a short demo and deploy a rate-limited public instance</li>
           <li>Tighten the answer prompt until every answer carries a citation (currently 0.88)</li>
           <li>Verify one Langfuse trace end to end</li>

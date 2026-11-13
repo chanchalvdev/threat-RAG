@@ -211,7 +211,8 @@ Found during Phase 9:
 | G34 | Rate limiting is a fixed window, so a burst straddling two windows can reach twice the limit | open (acceptable for this scale) |
 | G35 | JWTs are HS256 with a shared secret and no revocation; there is no user store or OIDC | open (out of scope) |
 | G36 | Playwright runs against a mocked API; there is no browser test against the full compose stack | open |
-| G37 | CI has not yet run on GitHub: the workflow is validated locally command by command only | open until the branches are pushed |
+| G37 | CI had never run on GitHub | **fixed** 2026-11-13: all four jobs pass on the pull request |
+| G38 | The web image never built: its Dockerfile copied `../infra/nginx.conf` from outside the build context | **fixed**: `nginx.conf` lives in `web/`; found by the first CI run |
 
 ---
 
