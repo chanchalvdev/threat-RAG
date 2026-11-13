@@ -189,7 +189,7 @@ tests/unit/
 backend/Dockerfile      # multi-stage: builder installs deps → runtime as non-root user
 web/Dockerfile          # multi-stage: node builds → nginx serves static files
 web/postcss.config.js   # Tailwind CSS PostCSS config
-infra/nginx.conf        # SPA routing + /api proxy with SSE buffering disabled
+web/nginx.conf          # SPA routing + /api proxy with SSE buffering disabled
 infra/docker-compose.yml # all 5 services with health checks and depends_on
 ```
 
