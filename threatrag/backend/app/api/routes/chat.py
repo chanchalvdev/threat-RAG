@@ -1,81 +1,28 @@
 import re
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.react_agent import as_history
 from app.agent.session import session_manager
+from app.api.identity import Identity, current_identity, llm_budget
+from app.api.security import ensure_safe
 from app.core.llm import get_llm
 from app.core.logging import get_logger
-from app.rag.sanitiser import is_injection
+from app.models.chat_schemas import (
+    ChatHistoryMessage, ChatRequest, ChatStatusResponse, SuggestionRequest, SuggestionsResponse,
+)
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 _LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
-
-
-class ChatRequest(BaseModel):
-    question: str = Field(..., min_length=2, max_length=4000)
-    session_id: str | None = None
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "question": "What CVEs affect Apache Log4j?",
-                "session_id": None,
-            }
-        }
-    )
-
-
-class SuggestionRequest(BaseModel):
-    last_question: str
-    last_answer: str
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "last_question": "What CVEs affect Apache Log4j?",
-                "last_answer": "CVE-2021-44228 (Log4Shell) is a critical RCE in Apache Log4j 2.",
-            }
-        }
-    )
-
-
-class ChatHistoryMessage(BaseModel):
-    role: str
-    content: str
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"role": "user", "content": "What CVEs affect Apache Log4j?"}}
-    )
-
-
-class ChatStatusResponse(BaseModel):
-    status: str
-
-    model_config = ConfigDict(json_schema_extra={"example": {"status": "cleared"}})
-
-
-class SuggestionsResponse(BaseModel):
-    suggestions: list[str]
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "suggestions": [
-                    "What versions of Log4j are affected by CVE-2021-44228?",
-                    "How does Log4Shell map to MITRE ATT&CK techniques?",
-                    "What mitigations are recommended for Log4Shell?",
-                ]
-            }
-        }
-    )
 
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Chat with the ReAct agent, streaming via SSE",
     description="Streams `thought`, `tool_call`, `tool_result`, `chunk`, `done` and `error` events. "
     "Pass the returned `X-Session-ID` back as `session_id` to continue the conversation.",
@@ -97,12 +44,10 @@ class SuggestionsResponse(BaseModel):
         }
     },
 )
-async def chat_stream(req: ChatRequest) -> StreamingResponse:
-    if is_injection(req.question):
-        log.warning("injection_detected", route="chat", question=req.question[:100])
-        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
+async def chat_stream(req: ChatRequest, identity: Identity = Depends(current_identity)) -> StreamingResponse:
+    await ensure_safe(req.question)
     session_id = req.session_id or str(uuid.uuid4())
-    agent = await session_manager.get_or_create(session_id)
+    agent = session_manager.get(identity.sub, session_id)
 
     async def _stream():
         async for chunk in agent.stream(req.question, session_id):
@@ -117,9 +62,9 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
     response_model=list[ChatHistoryMessage],
     summary="Get a session's conversation history",
 )
-async def get_history(session_id: str) -> list[dict[str, str]]:
-    agent = await session_manager.get_or_create(session_id)
-    return agent.get_history()
+async def get_history(session_id: str, identity: Identity = Depends(current_identity)) -> list[dict[str, str]]:
+    """Empty for an unknown session and for a session that belongs to another identity."""
+    return as_history(await session_manager.history(identity.sub, session_id))
 
 
 @router.delete(
@@ -127,14 +72,14 @@ async def get_history(session_id: str) -> list[dict[str, str]]:
     response_model=ChatStatusResponse,
     summary="Clear a session's conversation history",
 )
-async def clear_history(session_id: str) -> dict[str, str]:
-    agent = await session_manager.get_or_create(session_id)
-    agent.clear_history()
+async def clear_history(session_id: str, identity: Identity = Depends(current_identity)) -> dict[str, str]:
+    await session_manager.clear(identity.sub, session_id)
     return {"status": "cleared"}
 
 
 @router.post(
     "/suggestions",
+    dependencies=spends,
     response_model=SuggestionsResponse,
     summary="Generate follow-up question suggestions",
     description="Given the last Q&A exchange, asks the LLM for 3 relevant follow-up security questions.",

@@ -1,14 +1,14 @@
 """LLM-as-judge implementations of the four RAGAs metric definitions.
 
 The `ragas` package is incompatible with the LangChain 1.x stack this project runs on,
-so the metrics are computed directly with Kimchi (judge) + Ollama (embeddings).
+so the metrics are computed directly with the judge model (`get_judge_llm`) and the embedder.
 """
 import json
 import math
 import re
 from typing import Any
 
-from app.core.llm import get_llm
+from app.core.llm import get_judge_llm
 from app.rag.embedder import get_embedder
 
 _JSON_RE = re.compile(r"\{.*\}|\[.*\]", re.DOTALL)
@@ -16,7 +16,7 @@ _JSON_RE = re.compile(r"\{.*\}|\[.*\]", re.DOTALL)
 
 async def _judge(prompt: str, key: str) -> list[Any]:
     """Ask the judge for {key: [...]}; tolerates a bare top-level list from weaker models."""
-    response = await get_llm(temperature=0.0).ainvoke(prompt + "\nRespond with JSON only.")
+    response = await get_judge_llm().ainvoke(prompt + "\nRespond with JSON only.")
     match = _JSON_RE.search(str(response.content))
     if not match:
         raise ValueError("Judge did not return JSON")
@@ -69,12 +69,17 @@ async def answer_relevancy(question: str, answer: str) -> float:
     return max(0.0, sum(_cosine(vectors[0], v) for v in vectors[1:]) / len(generated))
 
 
-async def context_precision(question: str, reference: str, contexts: list[str]) -> float:
-    """Average precision@k over contexts judged useful for producing the reference answer."""
+async def context_precision(question: str, reference: str | None, contexts: list[str]) -> float:
+    """Average precision@k over contexts judged useful.
+
+    With a reference, "useful" means useful for producing that reference. Without one the judge
+    scores usefulness for the question alone; grading against the generated answer would be circular.
+    """
+    target = f"answering QUESTION with the REFERENCE answer.\nREFERENCE: {reference[:2000]}" if reference else "answering QUESTION."
     raw = await _judge(
-        "For each numbered CONTEXT say whether it is useful for answering QUESTION with the "
-        'REFERENCE answer. JSON: {"verdicts": [bool, ...]} in context order.\n'
-        f"QUESTION: {question}\nREFERENCE: {reference[:2000]}\nCONTEXT:\n{_ctx(contexts)}",
+        f"For each numbered CONTEXT say whether it is useful for {target}\n"
+        'JSON: {"verdicts": [bool, ...]} in context order.\n'
+        f"QUESTION: {question}\nCONTEXT:\n{_ctx(contexts)}",
         "verdicts",
     )
     verdicts = [_truthy(v) for v in raw][: len(contexts)]

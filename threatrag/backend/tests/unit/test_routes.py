@@ -103,7 +103,7 @@ async def test_query_stream_returns_sse(client):
 @pytest.mark.asyncio
 async def test_ingest_mitre_returns_accepted(client):
     # Stub the background job so the test never embeds the real corpus via Ollama
-    with patch("app.api.routes.ingest._run_mitre", AsyncMock()):
+    with patch("app.api.routes.ingest._run", AsyncMock()):
         async with client as c:
             r = await c.post("/api/v1/ingest/mitre")
     assert r.status_code == 202

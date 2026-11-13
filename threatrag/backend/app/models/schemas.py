@@ -6,9 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 _SOURCE_DOC_EXAMPLE: dict[str, Any] = {
     "text": "T1110.001 Password Guessing: Adversaries may use a single or small "
     "list of commonly used passwords against many different accounts...",
-    "source": "mitre_attack.json#T1110.001",
+    "source": "MITRE ATT&CK Enterprise",
     "doc_type": "mitre_attack",
     "score": 0.87,
+    "ref_id": "T1110.001",
 }
 
 
@@ -17,6 +18,7 @@ class SourceDoc(BaseModel):
     source: str
     doc_type: str
     score: float
+    ref_id: str = ""  # technique ID (T1110.001) or OWASP ID (LLM01) when the chunk has one
 
     model_config = ConfigDict(json_schema_extra={"example": _SOURCE_DOC_EXAMPLE})
 
@@ -25,7 +27,8 @@ class RAGResponse(BaseModel):
     answer: str
     sources: list[SourceDoc]
     tokens_used: int = 0
-    confidence: Literal["high", "medium", "low"] = "high"
+    confidence: Literal["high", "low", "none"] = "high"
+    abstained: bool = False  # nothing relevant was retrieved, so no answer was generated
 
     model_config = ConfigDict(
         json_schema_extra={

@@ -7,6 +7,13 @@ import secrets
 from fastapi import Header, HTTPException
 
 from app.core.config import get_settings
+from app.guard import guard
+
+
+async def ensure_safe(text: str) -> None:
+    """Reject user text that the injection guard blocks."""
+    if (await guard.check(text)).blocked:
+        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
 
 
 async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:

@@ -80,56 +80,59 @@ td.id { font-family: var(--mono); color: var(--muted); white-space: nowrap; font
 
 <main>
   <header style="display:flex;flex-direction:column;gap:12px">
-    <div class="eyebrow">ThreatRAG · status as of 16 Oct 2026</div>
+    <span class="eyebrow">ThreatRAG · status as of 2026-11-13</span>
     <h1>ThreatRAG Architecture Map</h1>
-    <p class="lede">Phases 1–3 were scaffolded but several agent paths never ran. This pass completed Phase 3, hardened the API, and proved every agent flow live. The project is now at the start of production hardening.</p>
+    <p class="lede">Phases 1–9 are built. Retrieval, guardrails and state were rebuilt in Phases 6–9 and each change is backed by a measurement or a live run. What is still open is listed at the end.</p>
   </header>
 
   <section aria-labelledby="where">
     <h2 id="where">Where we are</h2>
     <div class="track">
-      <div class="stage"><span class="k">PHASE 1</span><strong>RAG core</strong><div class="bar"><i class="done" style="width:100%;background:var(--done)"></i></div><p>Ingest MITRE + OWASP, cited Q&amp;A, SSE</p></div>
-      <div class="stage"><span class="k">PHASE 2</span><strong>Agentic chat</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>ReAct + NVD + web. Memory &amp; tool cap repaired</p></div>
-      <div class="stage"><span class="k">PHASE 3</span><strong>Multi-agent</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Researcher→Critic→Reporter, pgvector, eval. Completed now</p></div>
-      <div class="stage here"><span class="k">PHASE 4A</span><strong>Hardening I</strong><div class="bar"><i style="width:80%;background:var(--partial)"></i></div><p>Upload safety, API key, readiness, idempotent ingest</p></div>
-      <div class="stage"><span class="k">PHASE 4B</span><strong>Production ops</strong><div class="bar"><i style="width:0"></i></div><p>OIDC, Redis, workers, tracing, CI/CD</p></div>
-      <div class="stage"><span class="k">PHASE 4C</span><strong>SOC features</strong><div class="bar"><i style="width:0"></i></div><p>Enrichment, feeds, hybrid search, SIEM</p></div>
+      <div class="stage"><span class="k">PHASES 1–3</span><strong>Core</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Cited Q&amp;A, ReAct chat, Researcher→Critic→Reporter</p></div>
+      <div class="stage"><span class="k">PHASE 4</span><strong>Hardening</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Runtime gaps closed, LLM fallback, CI workflow</p></div>
+      <div class="stage"><span class="k">PHASES 5–6</span><strong>Proof</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Repo packaging, 64-question golden set, offline eval</p></div>
+      <div class="stage"><span class="k">PHASE 7</span><strong>Retrieval</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Hybrid search, exact IDs, rerank, abstention</p></div>
+      <div class="stage"><span class="k">PHASE 8</span><strong>Guardrails</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Injection guard, fenced tool output, telemetry</p></div>
+      <div class="stage here"><span class="k">PHASE 9</span><strong>Production shape</strong><div class="bar"><i style="width:100%;background:var(--done)"></i></div><p>Redis state, identity, integration and E2E tests, STIX</p></div>
     </div>
     <div class="blocker" role="note">
-      <span class="pill open">BLOCKER</span>
-      <p><b>Kimchi account is out of credits.</b> Every model on <code>llm.kimchi.dev</code> returns HTTP 402, and <code>kimi-k2.6</code> is no longer listed (now <code>kimi-k2.7</code> / <code>kimi-k3</code>). Live tests ran on local <code>qwen2.5:3b</code> through the same client, so the mechanics are proven. Report quality still needs a re-check on Kimchi.</p>
+      <span class="pill open">NOT YET DONE</span>
+      <p><b>Fallback provider is untested live.</b> Kimchi still returns HTTP 402, so the fallback path is covered by unit tests only. CI (lint, types, unit, integration, web, Playwright, image builds, Trivy) passes on GitHub.</p>
     </div>
   </section>
 
   <section aria-labelledby="arch">
     <h2 id="arch">System architecture</h2>
-    <p class="lede">Every box is a real module. Color shows build status after this pass.</p>
+    <p class="lede">Every box is a real module. Color shows how it was verified.</p>
     <div class="legend">
-      <span><span class="pill done">built + live-tested</span></span>
-      <span><span class="pill partial">built, gaps open</span></span>
-      <span><span class="pill planned">planned (4B/4C)</span></span>
+      <span><span class="pill done">built + verified live</span></span>
+      <span><span class="pill partial">built, unit-tested only</span></span>
     </div>
     <div class="diagram">
 <pre class="mermaid">
 flowchart LR
   subgraph Client["React 18 console"]
-    UI_CHAT["Chat page<br/>tool timeline"]
-    UI_INV["Investigate page<br/>live agent cards"]
+    UI_CHAT["Chat<br/>sources + tool timeline"]
+    UI_INV["Investigate<br/>live agent cards · STIX export"]
     UI_KB["Knowledge base<br/>upload + stats"]
-    UI_AN["Analytics<br/>eval trends"]
+    UI_AN["Analytics<br/>eval trends · runtime metrics"]
   end
 
   subgraph Edge["API edge · FastAPI"]
-    AUTH["X-API-Key guard<br/>CORS from settings"]
-    OIDC["OIDC / RBAC<br/>rate limits"]
+    KEY["API key"]
+    ID["JWT identity<br/>sessions owned by subject"]
+    RL["Rate limit<br/>per identity / address"]
+    GUARD["Injection guard<br/>heuristic · optional LLM classifier"]
   end
 
-  subgraph Services["Service layer"]
+  subgraph Services["Routes and services"]
+    CHAT["/chat<br/>ReAct agent"]
     QRY["/query<br/>ThreatRAGChain"]
-    CHAT["/chat<br/>ReAct agent + 10-turn memory"]
     INV["/investigate<br/>investigation_service"]
-    EVAL["/evaluate<br/>LLM-judge RAGAs"]
-    ING["/ingest<br/>MITRE · OWASP · PDF"]
+    STIX["/reports/{id}/stix<br/>STIX 2.1 bundle"]
+    ING["/ingest<br/>MITRE · OWASP 2025 · PDF"]
+    EVAL["/evaluate<br/>judge model"]
+    MET["/metrics<br/>latency · tokens · counters"]
   end
 
   subgraph Graph["LangGraph investigation"]
@@ -138,124 +141,162 @@ flowchart LR
     C -- "approved / pass 2" --> W["Reporter<br/>streams markdown"]
   end
 
-  subgraph Tools["Agent tools"]
+  subgraph Retrieval["Retriever"]
+    EX["Exact ID lookup<br/>T#### · LLM##"]
+    FUSE["Dense + lexical<br/>reciprocal-rank fusion"]
+    RR["Cross-encoder rerank<br/>opt-in"]
+    ABS["Diversity cap<br/>confidence · abstain"]
+    EX --> FUSE --> RR --> ABS
+  end
+
+  subgraph Tools["Agent tools · output fenced as untrusted data"]
     T1["threat_rag_search"]
-    T2["nvd_cve_lookup"]
-    T3["web_search (Tavily)"]
-    T4["VirusTotal · AbuseIPDB<br/>OTX · Shodan"]
+    T2["NVD · CISA KEV · EPSS"]
+    T3["Shodan · OTX · abuse.ch · AbuseIPDB"]
+    T4["web_search (Tavily)"]
   end
 
-  subgraph Data["Data plane"]
-    QD[("Qdrant<br/>961 vectors")]
+  subgraph Data["Data and models"]
+    QD[("Qdrant<br/>3,506 chunks · dense + sparse")]
     PG[("Postgres + pgvector<br/>reports · evaluations")]
+    RD[("Redis<br/>sessions · jobs · rate limits")]
     OL["Ollama<br/>nomic-embed-text 768d"]
-    LLM["LLM gateway<br/>Kimchi (402) · local fallback"]
-    RD[("Redis<br/>sessions · jobs")]
+    LLM["LLM factory<br/>Gemini → Kimchi · gemini_compat"]
+    LF["Langfuse<br/>tracing when keys are set"]
   end
 
-  Client --> AUTH --> Services
-  AUTH -.-> OIDC
+  Client --> KEY --> ID --> RL --> GUARD --> Services
   CHAT --> Tools
   INV --> Graph
   R --> Tools
-  T1 --> QD
-  QRY --> QD
+  T1 --> Retrieval
+  QRY --> Retrieval
+  Retrieval --> QD
   ING --> OL --> QD
   INV --> PG
+  STIX --> PG
   EVAL --> PG
+  CHAT --> RD
+  ING --> RD
+  RL --> RD
   Services --> LLM
-  CHAT -.-> RD
-  ING -.-> RD
+  LLM -.-> LF
 
   classDef done fill:#e3f3ea,stroke:#1f7a4d,color:#14202b
   classDef partial fill:#fbefdc,stroke:#a86300,color:#14202b
-  classDef planned fill:#ece9f8,stroke:#6b5bb0,color:#14202b,stroke-dasharray:4 3
-  class UI_CHAT,UI_INV,UI_KB,UI_AN,AUTH,QRY,CHAT,INV,EVAL,ING,R,C,W,T1,T2,QD,PG,OL done
-  class LLM,T3 partial
-  class OIDC,T4,RD planned
+  class UI_CHAT,UI_INV,UI_KB,UI_AN,GUARD,CHAT,QRY,INV,STIX,ING,EVAL,MET,R,C,W,EX,FUSE,RR,ABS,T1,T2,QD,PG,RD,OL,LLM done
+  class KEY,ID,RL,T3,T4,LF partial
 </pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="req">
+    <h2 id="req">One chat question, end to end</h2>
+    <div class="grid2">
+      <div class="panel">
+        <ol class="flow">
+          <li><b>Edge.</b> API key and bearer token are checked, the caller's request is counted against its rate limit, and the question is scored by the injection guard.</li>
+          <li><b>History.</b> The agent loads this identity's conversation from shared state, so any worker can serve the turn.</li>
+          <li><b>Retrieve.</b> Identifiers in the question are looked up exactly; dense and lexical candidates are fused; at most two chunks per technique reach the context.</li>
+          <li><b>Abstain or answer.</b> If the best match is below the calibrated threshold the API says so without calling the model.</li>
+          <li><b>Tools.</b> Tool and feed output is wrapped as untrusted data before the model reads it.</li>
+          <li><b>Stream.</b> Tokens pass through the stream sanitiser (credential formats redacted, indicators left intact) and the cited sources are sent as their own events.</li>
+          <li><b>Record.</b> Latency, tokens and guard decisions land in <code>/api/v1/metrics</code>; the turn is saved back to shared state.</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Measured</h3>
+        <div class="metrics">
+          <span class="metric"><span>hit@6</span> 0.79 → 0.95</span>
+          <span class="metric"><span>MRR</span> 0.58 → 0.89</span>
+          <span class="metric"><span>ID lookup hit@6</span> 0.00 → 1.00</span>
+          <span class="metric"><span>with rerank</span> hit@6 0.98 · +1.1 s</span>
+          <span class="metric"><span>false abstention</span> 0.25 → 0.00</span>
+          <span class="metric"><span>faithfulness</span> 0.99</span>
+          <span class="metric"><span>citation rate</span> 0.88</span>
+          <span class="metric"><span>guard, held-out</span> 0.65 patterns · 0.95 with classifier</span>
+          <span class="metric"><span>guard false positives</span> 0</span>
+          <span class="metric"><span>unit tests</span> 249 · 89% coverage</span>
+          <span class="metric"><span>integration</span> 9 on real services</span>
+          <span class="metric"><span>frontend</span> 6 Vitest · 3 Playwright</span>
+        </div>
+        <p style="font-size:14px;color:var(--muted)">Retrieval and answer numbers come from the 64-question golden set; guard numbers from the 90-item injection suite. Both are in-house regression sets, not benchmarks. Raw rows are in <code>threatrag/backend/eval/results/</code>.</p>
+      </div>
     </div>
   </section>
 
   <section aria-labelledby="flow">
     <h2 id="flow">One investigation, end to end</h2>
-    <p class="lede">Verified live with CVE-2021-44228 (Log4Shell) and CVE-2021-45046.</p>
+    <p class="lede">Verified live on 2026-11-13 with CVE-2021-44228 on <code>gemini-3.5-flash-lite</code>.</p>
     <div class="grid2">
       <div class="panel">
         <ol class="flow">
-          <li><b>Validate IOC.</b> Per-type regex or <code>ipaddress</code>, normalised (CVE upper, domain lower). Injection strings get 422.</li>
-          <li><b>Researcher</b> runs a ReAct sub-agent capped at 10 tool calls, plus a direct KB retrieval so every report has citations.</li>
+          <li><b>Validate IOC.</b> Per-type pattern or <code>ipaddress</code>, normalised (CVE upper, domain lower).</li>
+          <li><b>Researcher</b> runs a ReAct sub-agent capped at 10 tool calls, plus a direct retrieval so every report has citations.</li>
           <li><b>Critic</b> returns APPROVED or a gap list; it can send work back once.</li>
-          <li><b>Reporter</b> streams the report token by token as <code>report_chunk</code>.</li>
-          <li><b>Persist.</b> Embed report → save to Postgres → pgvector finds similar past reports.</li>
-          <li><b>done</b> event carries <code>report_id</code>, sources, tool trail and similar reports.</li>
+          <li><b>Reporter</b> streams the report as <code>report_chunk</code> events.</li>
+          <li><b>Check.</b> Technique IDs are validated against the ingested ATT&amp;CK corpus; mismatches are annotated.</li>
+          <li><b>Persist.</b> The report is embedded and saved; pgvector finds similar past reports.</li>
+          <li><b>Export.</b> <code>GET /investigate/reports/{id}/stix</code> returns a STIX 2.1 bundle.</li>
         </ol>
       </div>
       <div class="panel">
-        <h3>Live results</h3>
+        <h3>Live run</h3>
         <div class="metrics">
-          <span class="metric"><span>critic loop</span> revise → pass 2</span>
-          <span class="metric"><span>stream</span> 715 chunks</span>
-          <span class="metric"><span>similar</span> 0.906 cosine</span>
-          <span class="metric"><span>chat memory</span> 2-turn ✓</span>
-          <span class="metric"><span>eval</span> 0.64 overall</span>
-          <span class="metric"><span>unit tests</span> 68 (was 39)</span>
-          <span class="metric"><span>mypy</span> 0 errors (was 14)</span>
-          <span class="metric"><span>coverage</span> 66% / 80% target</span>
+          <span class="metric"><span>path</span> research → revise → research → report</span>
+          <span class="metric"><span>tool calls</span> 9</span>
+          <span class="metric"><span>similar reports</span> 3</span>
+          <span class="metric"><span>STIX</span> 1 vulnerability · 3 techniques · 3 relationships</span>
+          <span class="metric"><span>validated by</span> stix2 library</span>
+          <span class="metric"><span>chat history</span> survived API restart</span>
         </div>
-        <p style="font-size:14px;color:var(--muted)">Readiness reports Qdrant, Ollama, LLM and Postgres. The KB holds 858 MITRE techniques and 103 OWASP chunks, de-duplicated with deterministic IDs.</p>
+        <p style="font-size:14px;color:var(--muted)">The corpus is 697 live ATT&amp;CK techniques (3,379 chunks with mitigations, detections and known users) and the OWASP LLM Top 10 2025 (127 chunks).</p>
       </div>
     </div>
   </section>
 
   <section aria-labelledby="gaps">
     <h2 id="gaps">Gap register</h2>
-    <p class="lede">What the audit and live tests found. Full detail is in <code>spec/phase4.md</code>.</p>
+    <p class="lede">G1–G26 are in <code>spec/phase4.md</code>; everything below is in <code>spec/phase5-9-plan.md</code>.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>ID</th><th>Gap</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td class="id">G1</td><td>Researcher bound tools but never executed them, so reports had no evidence</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G2</td><td>Investigation stream faked one event after running the whole graph</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G3</td><td>Reports never saved; DB pool, migrations and <code>psycopg_pool</code> missing</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G4–5</td><td>Chat ignored session history; tool-call cap never enforced</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G6–7</td><td><code>ragas</code> incompatible with LangChain 1.x; Analytics charted random data</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G8</td><td>PDF upload path traversal, no type or size limit</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G9</td><td>Random point IDs duplicated the corpus on re-ingest (1,922 → 961)</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G16–17</td><td>No completion cap (15-min runaway); judge parsed <code>"false"</code> as true</td><td><span class="pill done">fixed</span></td></tr>
-          <tr><td class="id">G15</td><td>Readiness says LLM ok even when every model returns 402</td><td><span class="pill open">open</span></td></tr>
-          <tr><td class="id">G18</td><td>Reports can pair a technique ID with the wrong name</td><td><span class="pill open">open</span></td></tr>
-          <tr><td class="id">G19</td><td>No LLM fallback; one provider outage stops every feature</td><td><span class="pill open">open</span></td></tr>
-          <tr><td class="id">G20–22</td><td>Tavily untested, ESLint config broken, coverage 66%</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">A1–A3</td><td>One-line README, 139 MB of data in git, docs contradicting the code</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">A4–A6</td><td>No golden set; circular context precision; judge was the generator</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">A7–A9</td><td>Dense-only retrieval could not find a technique by ID; fake confidence; truncated corpus</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">A10–A12</td><td>Regex filter blocked real questions and missed attacks; sanitiser destroyed IOCs; tool output unfenced</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">A13</td><td>No token, cost or latency telemetry</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">A14–A16</td><td>State in process memory; sessions readable by anyone; no integration or browser tests</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G27–G29</td><td>Retired Gemini model; tool calls rejected without thought signatures; token counts ~13× too high</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G32–G33</td><td>Chat page never reached the agent; readiness reported a working model as failed</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G31</td><td>Langfuse tracing never verified against a live project</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G34–G35</td><td>Fixed-window rate limit; shared-secret tokens with no user store or revocation</td><td><span class="pill open">open</span></td></tr>
+          <tr><td class="id">G37–G38</td><td>CI had never run on GitHub; the web image never built</td><td><span class="pill done">fixed</span></td></tr>
+          <tr><td class="id">G36</td><td>No browser test against the full stack</td><td><span class="pill open">open</span></td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <section aria-labelledby="road">
-    <h2 id="road">Production roadmap</h2>
+    <h2 id="road">What comes next</h2>
     <div class="grid2">
       <div class="panel">
-        <div style="display:flex;gap:8px;align-items:center"><h3>Phase 4B · Run it safely</h3><span class="pill planned">next</span></div>
+        <h3>To finish what is here</h3>
         <ul>
-          <li><b>LLM gateway:</b> fallback chain, credit-aware readiness probe, token budgets per tenant</li>
-          <li><b>Identity:</b> OIDC + RBAC (analyst / engineer / admin); tenant ID on rows and Qdrant payloads</li>
-          <li><b>State:</b> Redis for sessions, ingest jobs and rate limits; today all three are lost on restart</li>
-          <li><b>Workers:</b> Arq or Celery for ingestion and long investigations</li>
-          <li><b>Observability:</b> Langfuse traces (keys already in env), OpenTelemetry, audit log</li>
-          <li><b>Guardrails:</b> classifier-based injection detection; technique-ID validation against MITRE</li>
-          <li><b>CI/CD:</b> ruff, mypy, pytest ≥80%, web build, Trivy, Playwright on the compose stack</li>
+          <li>Record a short demo and deploy a rate-limited public instance</li>
+          <li>Tighten the answer prompt until every answer carries a citation (currently 0.88)</li>
+          <li>Verify one Langfuse trace end to end</li>
         </ul>
       </div>
       <div class="panel">
-        <div style="display:flex;gap:8px;align-items:center"><h3>Phase 4C · SOC value</h3><span class="pill planned">after 4B</span></div>
+        <h3>Deliberately not built</h3>
         <ul>
-          <li><b>IOC enrichment:</b> VirusTotal, AbuseIPDB, OTX, GreyNoise, WHOIS. IP, hash and domain cases have no real data source today</li>
-          <li><b>Scheduled feeds:</b> CISA KEV daily, NVD deltas, MITRE quarterly, STIX/TAXII</li>
-          <li><b>Hybrid retrieval:</b> BM25 + dense + rerank, exact match on <code>T1059.001</code>-style IDs</li>
-          <li><b>Export:</b> STIX 2.1 bundle, PDF, Jira / ServiceNow tickets, Slack alerts</li>
-          <li><b>SIEM hook:</b> Splunk / Sentinel alert triggers an investigation automatically</li>
-          <li><b>Feedback loop:</b> analyst edits critic gaps; 👍/👎 feeds a golden eval set in CI</li>
+          <li>Kubernetes, multi-tenancy and role-based access</li>
+          <li>OIDC and a user store</li>
+          <li>Background workers for ingestion</li>
+          <li>SIEM webhooks and case management</li>
         </ul>
       </div>
     </div>

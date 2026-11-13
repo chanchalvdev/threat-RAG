@@ -1,7 +1,7 @@
 # Phase 4 — Phase-3 Completion + Production Hardening
 
 **Date:** 2026-10-16
-**Status:** Part A implemented + live-validated 2026-10-16 · Part B/C planned
+**Status:** Part A complete (leftovers closed 2026-10-30; live re-check pending) · Part B started (CI, deploy prep) · Part C started (free enrichment tools)
 
 ## Why this phase exists
 A code audit on 2026-10-16 found Phases 1–3 *scaffolded* but several Phase 2/3
@@ -89,18 +89,24 @@ must be re-checked on Kimchi.
 ### Found during live testing
 | # | Finding | Status |
 |---|---|---|
-| G15 | `/health/ready` reports `llm: ok` via `/models` even when every model returns 402 | open (readiness now also reports `llm_fallback`) → probe a 1-token completion, cache 60 s |
+| G15 | `/health/ready` reports `llm: ok` via `/models` even when every model returns 402 | **fixed**: `services/readiness.py` probes a 1-token completion, cached 60 s |
 | G16 | No completion cap → small model generated for 15+ min on one call | **fixed**: `LLM_MAX_TOKENS` (default 4096) |
 | G17 | Judge returned bare `["true","false"]`; `bool("false")` is True | **fixed**: tolerant parser + `_truthy` |
-| G18 | Reporter can emit mismatched technique ID/name (e.g. T1021.006 "Command and Scripting Interpreter") | open → validate IDs against ingested MITRE payloads before publish |
-| G19 | No LLM fallback — a single provider outage stops everything | **fixed**: Gemini fallback (`app/core/llm.py`, set `GEMINI_API_KEY`); falls back on provider/connection errors, never after tokens streamed, never on 400/422 |
+| G18 | Reporter can emit mismatched technique ID/name (e.g. T1021.006 "Command and Scripting Interpreter") | **fixed**: `agent/technique_check.py` appends a "Technique Validation" section (tokens have already streamed, so it annotates rather than rewrites) |
+| G19 | No LLM fallback — a single provider outage stops everything | **fixed**: Gemini primary, Kimchi fallback since 2026-10-30 (`app/core/llm.py`); falls back on provider/connection errors, never after tokens streamed, never on 400/422 |
 | G20 | `psycopg_pool` was never installed; `tavily-python` still not installed | pool **fixed**; Tavily path untested |
-| G21 | Web ESLint config broken (ESLint 9 needs flat config) | open |
-| G22 | Unit coverage 66% (< 80% target); DB/service paths only covered live | open → integration tests on compose stack |
+| G21 | Web ESLint config broken (ESLint 9 needs flat config) | **fixed**: `web/eslint.config.js` |
+| G22 | Unit coverage 66% (< 80% target); DB/service paths only covered live | **fixed**: 83%, enforced in CI; integration tests on the compose stack still to add |
+| G23 | Same-dimension embedders (Ollama vs Gemini) could silently share a collection | **fixed**: points tagged `embedding_model`; startup and ingest raise `EmbeddingMismatchError` |
+| G24 | `/ingest/mitre` and `/ingest/owasp` job IDs returned 404 until the background task started | **fixed**: job registered as `pending` before returning |
+| G25 | `web/node_modules` (16,093 files) is tracked in git despite `.gitignore` | **fixed** (commit 7671a372); `backend/data/` and `web/dist/` untracked in Phase 5 |
+| G26 | Any caller can read or clear any chat session by ID | open → Phase 9 (F9.3), see `spec/phase5-9-plan.md` |
 
 ---
 
-## Part B — Production hardening (next)
+## Part B — Production hardening
+
+> Superseded by [phase5-9-plan.md](phase5-9-plan.md), which re-scopes this table into Phases 5–9.
 | Area | Work |
 |---|---|
 | Identity | OIDC/JWT (Keycloak/Auth0), RBAC roles: analyst / engineer / admin; tenant_id on every row + Qdrant payload filter |
@@ -111,14 +117,14 @@ must be re-checked on Kimchi.
 | Guardrails | ML injection classifier (e.g. Llama-Guard / Prompt-Guard) instead of regex; output PII/secret scanning on agent + report text; tool allow-list per role |
 | Reliability | Timeouts + circuit breakers on NVD/Tavily/LLM; LLM fallback model (`minimax-m3`); retry with jitter |
 | Data | Alembic-style versioned migrations; Qdrant snapshots + PG backups; collection aliasing for zero-downtime re-index |
-| CI/CD | GitHub Actions: ruff, mypy, pytest+cov ≥80%, web typecheck/build, Docker build, Trivy scan; Playwright E2E on compose stack |
-| Deploy | Helm chart / ECS; Qdrant Cloud or HA; managed Postgres; secrets in Vault/SM; Ollama → GPU node or hosted embeddings |
+| CI/CD | **Done, not yet run on GitHub** (`.github/workflows/ci.yml`): ruff, mypy, pytest+cov ≥80%, web lint/typecheck/build, Docker build, Trivy scan. Remaining: Playwright E2E on compose stack |
+| Deploy | Started: `$PORT` Dockerfile, Gemini-only LLM + embeddings for hosts without Ollama. Remaining: Helm chart / ECS; Qdrant Cloud or HA; managed Postgres; secrets in Vault/SM; Ollama → GPU node or hosted embeddings |
 
 ## Part C — Feature roadmap
 | Feature | Value |
 |---|---|
-| IOC enrichment tools: VirusTotal, AbuseIPDB, Shodan, AlienVault OTX, GreyNoise, WHOIS/passive DNS | `ip`/`hash`/`domain` investigations currently have no data source beyond web search |
-| Scheduled feeds: MITRE quarterly, CISA KEV daily, NVD delta, STIX/TAXII | Keeps KB fresh without manual ingest |
+| IOC enrichment tools | **Built** (`agent/intel_sources.py`, `agent/intel_tools.py`): Shodan InternetDB, CISA KEV, FIRST EPSS (no key, live-tested); AbuseIPDB, AlienVault OTX, MalwareBazaar, URLhaus, ThreatFox (free keys, mock-tested only). Not built: VirusTotal, paid Shodan, GreyNoise, WHOIS/passive DNS |
+| Scheduled feeds: MITRE quarterly, NVD delta, STIX/TAXII (CISA KEV is fetched on demand and cached 6 h) | Keeps KB fresh without manual ingest |
 | Hybrid retrieval: BM25 + dense, cross-encoder rerank, technique-ID exact match | IDs like T1059.001 retrieve poorly with dense-only |
 | Report export: STIX 2.1 bundle, PDF, Jira/ServiceNow ticket, Slack/Teams | Fits SOC workflow |
 | SIEM integration: Splunk/Sentinel/Elastic alert → auto-investigate webhook | Turns tool into automation |

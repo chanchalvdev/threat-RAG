@@ -1,4 +1,4 @@
-"""Unit tests for the Kimchi → Gemini LLM fallback (no network)."""
+"""Unit tests for the Gemini → Kimchi LLM fallback (no network)."""
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -41,17 +41,21 @@ def test_should_fallback_on_connection_error_but_not_value_error():
     assert not llm_mod.should_fallback(ValueError("bug"))
 
 
-def test_no_key_returns_plain_primary():
-    with patch("app.core.llm.get_settings", return_value=_settings("")):
-        assert type(llm_mod.get_llm()).__name__ == "ChatOpenAI"
-        assert not llm_mod.fallback_enabled()
+def test_single_key_runs_that_provider_alone():
+    only_gemini = Settings(_env_file=None, kimchi_api_key="", gemini_api_key="g")
+    for settings, model in ((_settings(""), "kimi-k2.6"), (only_gemini, "gemini-3.5-flash-lite")):
+        with patch("app.core.llm.get_settings", return_value=settings):
+            client = llm_mod.get_llm()
+            assert client.fallback is None and client.model_name == model
+            assert not llm_mod.fallback_enabled()
 
 
-def test_key_returns_fallback_wrapper_with_gemini_backup():
+def test_both_keys_make_gemini_primary_and_kimchi_fallback():
     with patch("app.core.llm.get_settings", return_value=_settings()):
         model = llm_mod.get_llm()
     assert isinstance(model, llm_mod.FallbackChatOpenAI)
-    assert model.fallback is not None and model.fallback.model_name == "gemini-2.5-flash"
+    assert model.model_name == "gemini-3.5-flash-lite"
+    assert model.fallback is not None and model.fallback.model_name == "kimi-k2.6"
 
 
 class _Backup(llm_mod.ChatOpenAI):  # type: ignore[misc]
@@ -142,3 +146,16 @@ async def test_astream_does_not_fall_back_after_tokens_were_sent():
             async for c in model.astream([HumanMessage(content="hi")]):
                 got.append(str(c.content))
     assert got == ["par"]  # no duplicated "gem" appended after partial output
+
+
+def test_judge_uses_its_own_model_when_configured():
+    settings = _settings("gem-key")
+    settings.judge_model = "judge-model"
+    with patch.object(llm_mod, "get_settings", return_value=settings):
+        judge = llm_mod.get_judge_llm()
+    assert judge.model_name == "judge-model" and judge.temperature == 0.0
+
+
+def test_judge_falls_back_to_generator_when_unset():
+    with patch.object(llm_mod, "get_settings", return_value=_settings("gem-key")):
+        assert llm_mod.get_judge_llm().model_name == llm_mod.get_llm().model_name

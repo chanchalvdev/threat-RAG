@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, ReferenceLine, Tooltip, ResponsiveContai
 import { Loader2, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { getEvaluationHistory, runEvaluation } from '../lib/api'
+import RuntimeMetrics from '../components/RuntimeMetrics'
 
 const METRICS = [
   { key: 'faithfulness',      label: 'Faithfulness',      color: '#22D3EE' },
@@ -54,8 +55,14 @@ export default function Analytics() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <section>
+        <h2 className="text-base font-semibold text-slate-100 mb-1">Runtime</h2>
+        <p className="text-xs text-slate-500 mb-4">This API process since its last restart · latency over the last 500 requests (time to first byte for streams)</p>
+        <RuntimeMetrics />
+      </section>
+
+      <section>
         <h2 className="text-base font-semibold text-slate-100 mb-1">Quality trends</h2>
-        <p className="text-xs text-slate-500 mb-4">RAGAs metrics over the last {trend.length} evaluations · green line = target (0.8), yellow = floor (0.5)</p>
+        <p className="text-xs text-slate-500 mb-4">LLM-judge metrics over the last {trend.length} evaluations · green line = target (0.8), yellow = floor (0.5)</p>
         {trend.length === 0 && (
           <p className="card p-4 text-sm text-slate-400 mb-4">
             {history.isLoading ? 'Loading…' : 'No evaluations recorded yet — run one below to start the trend.'}
@@ -85,7 +92,7 @@ export default function Analytics() {
       <section className="card p-6 space-y-4">
         <div>
           <h3 className="font-semibold text-sm text-slate-100">Run an evaluation</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Score a question / answer / context triple with RAGAs</p>
+          <p className="text-xs text-slate-500 mt-0.5">Score a question / answer / context triple with the judge model</p>
         </div>
         {FIELDS.map(({ key, label, rows, placeholder }) => (
           <div key={key}>

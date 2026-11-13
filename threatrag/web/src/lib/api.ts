@@ -1,8 +1,12 @@
 import axios from 'axios'
 
-const API_KEY = import.meta.env.VITE_API_KEY // optional backend API_KEY guard; OIDC in Phase 4B
-export const apiHeaders = (extra: Record<string, string> = {}): Record<string, string> =>
-  API_KEY ? { ...extra, 'X-API-Key': API_KEY } : extra
+const API_KEY = import.meta.env.VITE_API_KEY     // backend API_KEY guard, when enabled
+const API_TOKEN = import.meta.env.VITE_API_TOKEN // bearer token, when the backend sets JWT_SECRET
+export const apiHeaders = (extra: Record<string, string> = {}): Record<string, string> => ({
+  ...extra,
+  ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+  ...(API_TOKEN ? { Authorization: 'Bearer ' + API_TOKEN } : {}),
+})
 
 const http = axios.create({ baseURL: '/api/v1', headers: apiHeaders() })
 
@@ -11,13 +15,15 @@ export interface SourceDoc {
   source: string
   doc_type: string
   score: number
+  ref_id?: string
 }
 
 export interface RAGResponse {
   answer: string
   sources: SourceDoc[]
   tokens_used: number
-  confidence: 'high' | 'medium' | 'low'
+  confidence: 'high' | 'low' | 'none'
+  abstained?: boolean
 }
 
 export interface IngestStatus {
@@ -63,7 +69,15 @@ export interface EvaluationRecord {
   created_at: string
 }
 
+export interface RuntimeMetrics {
+  routes: Record<string, { requests: number; errors_5xx: number; p50_ms: number; p95_ms: number }>
+  llm: { calls: number; tokens_in: number; tokens_out: number; p50_ms: number; p95_ms: number; estimated_cost_usd: number | null; primary_model?: string | null }
+  counters: Record<string, number>
+}
+
 // --- REST calls ---
+
+export const getRuntimeMetrics = () => http.get<RuntimeMetrics>('/metrics').then(r => r.data)
 
 export const listReports = (limit = 10) =>
   http.get<ReportSummary[]>('/investigate/reports', { params: { limit } }).then(r => r.data)
@@ -99,6 +113,16 @@ export const getIngestStats = () =>
 export const getHealth = () =>
   axios.get<{ status: string }>('/health').then(r => r.data)
 
+/** Fetch with auth headers (a plain link would not send them), then hand the file to the browser. */
+export async function downloadStix(reportId: string): Promise<void> {
+  const res = await fetch('/api/v1/investigate/reports/' + reportId + '/stix', { headers: apiHeaders() })
+  if (!res.ok) throw new Error('STIX export failed (HTTP ' + res.status + ')')
+  const url = URL.createObjectURL(await res.blob())
+  const link = Object.assign(document.createElement('a'), { href: url, download: 'threatrag-' + reportId + '.stix.json' })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // --- SSE streaming ---
 
 export async function streamQuery(
@@ -106,12 +130,10 @@ export async function streamQuery(
   onEvent: (event: SSEEvent) => void,
   sessionId?: string,
 ): Promise<string | undefined> {
-  const endpoint = sessionId ? '/api/v1/chat/stream' : '/api/v1/query/stream'
-  const body = sessionId
-    ? JSON.stringify({ question, session_id: sessionId })
-    : JSON.stringify({ question, k: 6 })
+  // Always the agent endpoint: it has tools and memory, and returns the session to continue with.
+  const body = JSON.stringify({ question, session_id: sessionId ?? null })
 
-  const res = await fetch(endpoint, {
+  const res = await fetch('/api/v1/chat/stream', {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body,
@@ -141,7 +163,9 @@ export async function streamQuery(
       if (line.startsWith('data: ')) {
         try {
           onEvent(JSON.parse(line.slice(6)) as SSEEvent)
-        } catch {}
+        } catch {
+          // partial or non-JSON SSE frame: skip it, the stream continues
+        }
       }
     }
   }

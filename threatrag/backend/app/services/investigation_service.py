@@ -5,6 +5,8 @@ from typing import Any
 
 from app.agent.graph import run_investigation, stream_investigation
 from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
+from app.agent.technique_check import validate_techniques
+from app.api.deps import get_store
 from app.core.logging import get_logger
 from app.db import reports as repo
 from app.db.connection import get_pool, is_db_ready
@@ -33,8 +35,18 @@ async def persist(report: InvestigationReport) -> tuple[str | None, list[ReportS
         return None, []
 
 
+async def _technique_notes(report: InvestigationReport) -> str:
+    """Advisory only: a failed check must not cost the analyst the report."""
+    try:
+        return validate_techniques(report.final_report, await get_store().technique_names())
+    except Exception as exc:
+        log.warning("technique_check_failed", ioc=report.ioc, error=str(exc))
+        return ""
+
+
 async def investigate(req: InvestigationRequest) -> InvestigationReport:
     report = await run_investigation(req)
+    report.final_report += await _technique_notes(report)
     report.report_id, _ = await persist(report)
     return report
 
@@ -46,6 +58,10 @@ async def investigate_sse(req: InvestigationRequest) -> AsyncIterator[str]:
                 yield _sse(event)
                 continue
             report: InvestigationReport = event["report"]
+            notes = await _technique_notes(report)
+            if notes:  # tokens already reached the client, so corrections are appended
+                report.final_report += notes
+                yield _sse({"type": "report_chunk", "data": notes})
             report_id, similar = await persist(report)
             yield _sse({
                 "type": "done",

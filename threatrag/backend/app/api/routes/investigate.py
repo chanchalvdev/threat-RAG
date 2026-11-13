@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.api.identity import llm_budget
 from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
+from app.api.deps import get_store
 from app.db import reports as repo
 from app.db.connection import get_pool, is_db_ready
 from app.services.investigation_service import investigate, investigate_sse
+from app.services.stix_export import build_bundle
 
 router = APIRouter(prefix="/investigate", tags=["investigate"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 
 _SSE_EXAMPLE = (
     'data: {"type": "node_start", "node": "researcher", "iteration": 1}\n\n'
@@ -26,6 +30,7 @@ def _require_db() -> None:
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Run a multi-agent investigation, streaming via SSE",
     description="Runs the Researcher → Critic → Reporter LangGraph loop for an IOC. Streams "
     "`node_start`, `tool_call`, `node_done`, `routing`, `report_chunk`, then `done` "
@@ -42,6 +47,7 @@ async def investigate_stream(req: InvestigationRequest) -> StreamingResponse:
 
 @router.post(
     "/save",
+    dependencies=spends,
     response_model=InvestigationReport,
     summary="Run an investigation to completion and persist the report",
 )
@@ -72,3 +78,18 @@ async def get_report(report_id: str) -> InvestigationReport:
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return report
+
+
+@router.get(
+    "/reports/{report_id}/stix",
+    summary="Export a saved report as a STIX 2.1 bundle",
+    description="Bundle with the report, the investigated indicator (or vulnerability) and the ATT&CK "
+    "techniques it cites, ready for a TIP or SIEM. Techniques not in the ingested corpus are left out.",
+    responses={404: {"content": {"application/json": {"example": {"detail": "Report not found"}}}}},
+)
+async def export_stix(report_id: str) -> JSONResponse:
+    report = await get_report(report_id)
+    bundle = build_bundle(report, await get_store().technique_names())
+    name = f"threatrag-{report_id}.stix.json"
+    return JSONResponse(bundle, media_type="application/stix+json;version=2.1",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})

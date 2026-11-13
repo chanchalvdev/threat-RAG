@@ -1,5 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 
+from app.guard.untrusted import UNTRUSTED_RULE
+
 RAG_SYSTEM = (
     "You are a senior cybersecurity analyst and threat intelligence expert. "
     "Answer questions using ONLY the provided context from security knowledge bases "
@@ -7,7 +9,7 @@ RAG_SYSTEM = (
     "Always cite your sources using [Source: X] notation. "
     "If the context does not contain enough information to answer confidently, "
     "say so rather than guessing. "
-    "Format technical content (technique IDs, CVE numbers, code) in backticks."
+    "Format technical content (technique IDs, CVE numbers, code) in backticks. " + UNTRUSTED_RULE
 )
 
 RAG_PROMPT = ChatPromptTemplate.from_messages(

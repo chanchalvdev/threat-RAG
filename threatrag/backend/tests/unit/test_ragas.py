@@ -52,27 +52,27 @@ def _llm_returning(text: str) -> MagicMock:
 @pytest.mark.asyncio
 async def test_faithfulness_counts_supported_claims():
     reply = 'Sure: {"claims": [{"claim": "a", "supported": true}, {"claim": "b", "supported": false}]}'
-    with patch("app.evaluation.judge.get_llm", return_value=_llm_returning(reply)):
+    with patch("app.evaluation.judge.get_judge_llm", return_value=_llm_returning(reply)):
         assert await judge.faithfulness("a. b.", ["ctx"]) == 0.5
 
 
 @pytest.mark.asyncio
 async def test_context_precision_is_average_precision():
-    with patch("app.evaluation.judge.get_llm", return_value=_llm_returning('{"verdicts": [false, true, true]}')):
+    with patch("app.evaluation.judge.get_judge_llm", return_value=_llm_returning('{"verdicts": [false, true, true]}')):
         score = await judge.context_precision("q", "ref", ["c1", "c2", "c3"])
     assert score == pytest.approx(((1 / 2) + (2 / 3)) / 2)
 
 
 @pytest.mark.asyncio
 async def test_judge_without_json_raises():
-    with patch("app.evaluation.judge.get_llm", return_value=_llm_returning("no json here")):
+    with patch("app.evaluation.judge.get_judge_llm", return_value=_llm_returning("no json here")):
         with pytest.raises(ValueError):
             await judge.context_recall("gt", ["ctx"])
 
 
 @pytest.mark.asyncio
 async def test_judge_accepts_bare_list_with_string_booleans():
-    with patch("app.evaluation.judge.get_llm", return_value=_llm_returning('["true", "false", "yes"]')):
+    with patch("app.evaluation.judge.get_judge_llm", return_value=_llm_returning('["true", "false", "yes"]')):
         score = await judge.context_precision("q", "ref", ["c1", "c2", "c3"])
     assert score == pytest.approx((1 + 2 / 3) / 2)
 
@@ -81,3 +81,12 @@ def test_cosine_similarity():
     assert judge._cosine([1.0, 0.0], [1.0, 0.0]) == pytest.approx(1.0)
     assert judge._cosine([1.0, 0.0], [0.0, 1.0]) == pytest.approx(0.0)
     assert judge._cosine([0.0, 0.0], [1.0, 0.0]) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_context_precision_without_reference_does_not_use_the_answer():
+    llm = _llm_returning('{"verdicts": [true]}')
+    with patch("app.evaluation.judge.get_judge_llm", return_value=llm):
+        assert await judge.context_precision("q", None, ["c1"]) == 1.0
+    prompt = llm.ainvoke.call_args.args[0]
+    assert "REFERENCE" not in prompt
