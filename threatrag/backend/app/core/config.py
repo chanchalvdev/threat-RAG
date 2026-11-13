@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Prompt-injection guard: heuristic scoring; "llm" adds a judge-model second opinion on borderline input
     guard_mode: Literal["off", "heuristic", "llm"] = "heuristic"
     max_upload_mb: int = 25
+    jwt_secret: str = ""               # when set, /api/v1/* requires an HS256 bearer token; sessions are per subject
+    rate_limit_per_minute: int = 120   # per identity (or per client address when anonymous); 0 disables
+    redis_url: str = ""                # empty = in-process state (single worker, lost on restart)
 
     # Vector Store
     qdrant_url: str = "http://localhost:6333"

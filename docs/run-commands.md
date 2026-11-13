@@ -12,8 +12,10 @@ For the automated version of this, use `./start-services.sh` instead.
 
 ```bash
 cd threatrag/infra
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
+Redis (chat history, ingest jobs, rate limits) listens on host port **6380**. Leave `REDIS_URL`
+empty to keep that state in the API process instead.
 
 Check it's ready:
 ```bash

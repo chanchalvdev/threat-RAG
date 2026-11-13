@@ -89,9 +89,9 @@ def draw_caption(c: Canvas, flows: list[Flow], active: Flow | None) -> None:
         c.dot((x + 5, 744), 5, f.color if on or active is None else _mix(PANEL, f.color, 0.35))
         c.text((x + 16, 744), f.title, "title", INK if on or active is None else MUTED, "lm")
         x += 150
-    msg = active.caption if active else "Four request flows share one service layer, one vector store and one LLM gateway."
+    msg = active.caption if active else "Four request flows share one retriever, one vector store, one state store and one LLM factory."
     c.text((40, 770), msg, "cap", INK, "lm")
-    c.text((1244, 744), "Kimchi primary · Gemini fallback · Ollama embeddings", "sub", MUTED, "rm")
+    c.text((1244, 744), "Gemini primary · Kimchi fallback · Ollama embeddings", "sub", MUTED, "rm")
 
 
 def _sample(path: list[Point]) -> list[Point]:

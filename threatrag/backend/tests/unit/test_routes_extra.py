@@ -65,14 +65,15 @@ async def test_upload_accepted_writes_basename_only(client, tmp_path):
     assert (tmp_path / "x.pdf").exists()
 
 
-async def test_run_jobs_record_failure():
+async def test_run_jobs_record_failure(client):
     await ingest_routes._run("j1", AsyncMock(side_effect=ValueError("bad")))
-    assert ingest_routes._jobs["j1"].status == "failed" and ingest_routes._jobs["j1"].error == "bad"
+    job = (await client.get("/api/v1/ingest/status/j1")).json()
+    assert job["status"] == "failed" and job["error"] == "bad"
 
 
-async def test_run_jobs_record_success():
+async def test_run_jobs_record_success(client):
     await ingest_routes._run("j2", AsyncMock(return_value=7))
-    assert ingest_routes._jobs["j2"].chunks_processed == 7
+    assert (await client.get("/api/v1/ingest/status/j2")).json()["chunks_processed"] == 7
 
 
 async def test_reports_503_when_db_down(client):

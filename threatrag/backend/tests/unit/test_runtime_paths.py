@@ -4,12 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.errors import GraphRecursionError
 
 os.environ.setdefault("KIMCHI_API_KEY", "test-key-for-unit-tests")
 
 from app.agent import nodes  # noqa: E402
+from app.agent.session import SessionHistory  # noqa: E402
 from app.api.routes import chat as chat_routes  # noqa: E402
 from app.db import connection  # noqa: E402
 from app.main import app  # noqa: E402
@@ -169,17 +170,18 @@ async def test_chat_streams_and_returns_session_header(client):
         yield 'data: {"type": "done"}\n\n'
 
     agent = MagicMock(stream=fake_stream)
-    with patch.object(chat_routes.session_manager, "get_or_create", new=AsyncMock(return_value=agent)):
+    with patch.object(chat_routes.session_manager, "get", return_value=agent) as get:
         r = await client.post("/api/v1/chat/stream", json={"question": "What is T1059?"})
+    assert get.call_args.args[0] == "anonymous"  # no JWT_SECRET: every caller is the anonymous identity
     assert r.status_code == 200 and r.headers["x-session-id"] and "done" in r.text
 
 
 async def test_chat_history_read_and_clear(client):
-    agent = MagicMock(get_history=MagicMock(return_value=[{"role": "user", "content": "hi"}]))
-    with patch.object(chat_routes.session_manager, "get_or_create", new=AsyncMock(return_value=agent)):
-        assert (await client.get("/api/v1/chat/history/s1")).json()[0]["content"] == "hi"
-        assert (await client.delete("/api/v1/chat/history/s1")).json() == {"status": "cleared"}
-    agent.clear_history.assert_called_once()
+    await SessionHistory("anonymous", "s1").save([HumanMessage(content="hi"), AIMessage(content="hello")])
+    assert (await client.get("/api/v1/chat/history/s1")).json() == [
+        {"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}]
+    assert (await client.delete("/api/v1/chat/history/s1")).json() == {"status": "cleared"}
+    assert (await client.get("/api/v1/chat/history/s1")).json() == []
 
 
 async def test_suggestions_strip_list_markers_and_cap_at_three(client):

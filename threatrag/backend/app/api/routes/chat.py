@@ -1,11 +1,13 @@
 import re
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agent.react_agent import as_history
 from app.agent.session import session_manager
+from app.api.identity import Identity, current_identity
 from app.api.security import ensure_safe
 from app.core.llm import get_llm
 from app.core.logging import get_logger
@@ -97,10 +99,10 @@ class SuggestionsResponse(BaseModel):
         }
     },
 )
-async def chat_stream(req: ChatRequest) -> StreamingResponse:
+async def chat_stream(req: ChatRequest, identity: Identity = Depends(current_identity)) -> StreamingResponse:
     await ensure_safe(req.question)
     session_id = req.session_id or str(uuid.uuid4())
-    agent = await session_manager.get_or_create(session_id)
+    agent = session_manager.get(identity.sub, session_id)
 
     async def _stream():
         async for chunk in agent.stream(req.question, session_id):
@@ -115,9 +117,9 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
     response_model=list[ChatHistoryMessage],
     summary="Get a session's conversation history",
 )
-async def get_history(session_id: str) -> list[dict[str, str]]:
-    agent = await session_manager.get_or_create(session_id)
-    return agent.get_history()
+async def get_history(session_id: str, identity: Identity = Depends(current_identity)) -> list[dict[str, str]]:
+    """Empty for an unknown session and for a session that belongs to another identity."""
+    return as_history(await session_manager.history(identity.sub, session_id))
 
 
 @router.delete(
@@ -125,9 +127,8 @@ async def get_history(session_id: str) -> list[dict[str, str]]:
     response_model=ChatStatusResponse,
     summary="Clear a session's conversation history",
 )
-async def clear_history(session_id: str) -> dict[str, str]:
-    agent = await session_manager.get_or_create(session_id)
-    agent.clear_history()
+async def clear_history(session_id: str, identity: Identity = Depends(current_identity)) -> dict[str, str]:
+    await session_manager.clear(identity.sub, session_id)
     return {"status": "cleared"}
 
 

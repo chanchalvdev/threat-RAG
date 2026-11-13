@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from app.api.deps import get_store
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.state import get_state
 from app.models.schemas import IngestAccepted, IngestJob, IngestStats
 from app.rag.embedder import get_embedder
 from app.rag.ingest_mitre import ingest_mitre_attack
@@ -18,7 +19,7 @@ from app.rag.store import QdrantStore
 log = get_logger(__name__)
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
-_jobs: dict[str, IngestJob] = {}
+JOB_TTL_S = 24 * 3600
 DATA_DIR = Path("data/sources")
 _DOC_TYPE_RE = re.compile(r"^[a-z0-9_]{1,32}$")
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
@@ -32,19 +33,23 @@ def _safe_pdf_name(filename: str | None) -> str:
     return name
 
 
+async def _put(job: IngestJob) -> None:
+    await get_state().set(f"ingest:job:{job.job_id}", job.model_dump_json(), ttl_s=JOB_TTL_S)
+
+
 async def _run(job_id: str, work: Callable[[], Awaitable[int]]) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
+    await _put(IngestJob(job_id=job_id, status="processing"))
     try:
         count = await work()
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
+        await _put(IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count))
     except Exception as exc:
         log.error("ingest_failed", job_id=job_id, error=str(exc))
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
+        await _put(IngestJob(job_id=job_id, status="failed", error=str(exc)))
 
 
-def _start(bg: BackgroundTasks, work: Callable[[], Awaitable[int]]) -> str:
+async def _start(bg: BackgroundTasks, work: Callable[[], Awaitable[int]]) -> str:
     job_id = str(uuid.uuid4())
-    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")  # visible to /status before the task starts
+    await _put(IngestJob(job_id=job_id, status="pending"))  # visible to /status before the task starts
     bg.add_task(_run, job_id, work)
     return job_id
 
@@ -75,7 +80,7 @@ async def ingest_pdf_route(
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     dest = DATA_DIR / name
     dest.write_bytes(data)
-    job_id = _start(bg, lambda: ingest_pdf(str(dest), doc_type, store, get_embedder()))
+    job_id = await _start(bg, lambda: ingest_pdf(str(dest), doc_type, store, get_embedder()))
     return IngestAccepted(job_id=job_id, filename=name)
 
 
@@ -89,7 +94,7 @@ async def ingest_pdf_route(
 )
 async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
     path = str(DATA_DIR / "mitre_attack.json")
-    return IngestAccepted(job_id=_start(bg, lambda: ingest_mitre_attack(path, store, get_embedder())))
+    return IngestAccepted(job_id=await _start(bg, lambda: ingest_mitre_attack(path, store, get_embedder())))
 
 
 @router.post(
@@ -100,7 +105,7 @@ async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(g
     description="Fetches the ten risk pages from the OWASP project repository and indexes them in the background.",
 )
 async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
-    return IngestAccepted(job_id=_start(bg, lambda: ingest_owasp_llm(store, get_embedder())))
+    return IngestAccepted(job_id=await _start(bg, lambda: ingest_owasp_llm(store, get_embedder())))
 
 
 @router.get(
@@ -110,10 +115,10 @@ async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(g
     responses={404: {"description": "Job not found", "content": {"application/json": {"example": {"detail": "Job not found"}}}}},
 )
 async def get_status(job_id: str) -> IngestJob:
-    job = _jobs.get(job_id)
-    if not job:
+    raw = await get_state().get(f"ingest:job:{job_id}")
+    if raw is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return IngestJob.model_validate_json(raw)
 
 
 @router.get(

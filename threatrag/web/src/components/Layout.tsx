@@ -8,7 +8,7 @@ const NAV = [
   { to: '/chat',           label: 'Chat',           desc: 'Ask the threat intel assistant',      Icon: MessageSquare },
   { to: '/knowledge-base', label: 'Knowledge Base', desc: 'Ingest and inspect intel sources',    Icon: Database },
   { to: '/investigate',    label: 'Investigate',    desc: 'Multi-agent IOC investigation',       Icon: Search },
-  { to: '/analytics',      label: 'Analytics',      desc: 'RAGAs answer-quality evaluation',     Icon: BarChart2 },
+  { to: '/analytics',      label: 'Analytics',      desc: 'Answer quality and runtime telemetry',     Icon: BarChart2 },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {

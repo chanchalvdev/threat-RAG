@@ -49,6 +49,9 @@ knowledge base.
    copies the full answer as plain text/Markdown.
 7. If the agent used a tool (KB search, CVE lookup, web search) to answer, a timeline of
    those tool calls appears under the message — click one to expand its input/output.
+   The Chat page always talks to the agent, so follow-up questions ("which groups use that
+   technique?") use the earlier turns, and those turns survive a backend restart when Redis is
+   configured.
 8. Click **New conversation** (top of the message list) to clear history and start a fresh
    session — this also drops the session ID so context doesn't leak between topics.
 9. If something goes wrong (backend down, LLM error), the message bubble shows a red
@@ -77,20 +80,26 @@ report on a specific indicator rather than a single conversational answer.
 5. Use the two buttons above the report:
    - **Copy Markdown** — copies the raw report text
    - **Export PDF** — opens your browser's print dialog (choose "Save as PDF")
+   Under a saved report, **Export STIX 2.1** downloads a bundle (the indicator or vulnerability,
+   the ATT&CK techniques the report cites, and their relationships) for a TIP or SIEM.
 6. If the request fails outright (e.g. backend unreachable), a red banner appears above
    the pipeline with the error instead of the cards spinning forever.
 
 ---
 
-## 4. Analytics — check answer quality (RAGAs)
+## 4. Analytics — answer quality and runtime
 
-The bar-chart tab. Two things live here: a quality-trend overview, and a manual scoring
-tool.
+The bar-chart tab. Three things live here: runtime telemetry, a quality-trend overview, and a
+manual scoring tool.
 
-**Trend charts** (top section) show four RAGAs metrics — Faithfulness, Answer Relevancy,
-Context Precision, Context Recall — each with a green dashed line at 0.8 (target) and
-yellow at 0.5 (floor). *(Currently populated with illustrative demo data, not live
-history — treat it as a preview of the layout rather than production metrics.)*
+**Runtime** (top section) shows this API process since its last restart: LLM calls and latency,
+tokens in and out (cost stays "not priced" until prices are configured), how many requests the
+injection guard blocked, how many questions were answered with "not in the knowledge base", and
+p50/p95 latency per route.
+
+**Trend charts** show four LLM-judge metrics — Faithfulness, Answer Relevancy, Context Precision,
+Context Recall — each with a green dashed line at 0.8 (target) and yellow at 0.5 (floor). They
+plot the evaluations saved in the database, oldest first.
 
 **Run an evaluation** (bottom section) scores one Q&A exchange on demand:
 
@@ -103,7 +112,7 @@ history — treat it as a preview of the layout rather than production metrics.)
 2. Click **Evaluate** (disabled until Question, Answer, and Contexts are all filled).
 3. Results appear as color-coded bars: green ≥ 0.8, yellow ≥ 0.5, red below — each with
    the exact numeric score to three decimal places.
-4. A red error banner appears if the evaluation call fails (e.g. RAGAs/backend not
+4. A red error banner appears if the evaluation call fails (e.g. judge model or backend not
    configured) instead of hanging on "Evaluating…" indefinitely.
 
 ---
@@ -115,7 +124,7 @@ history — treat it as a preview of the layout rather than production metrics.)
 | Ask a security question | Chat |
 | Load MITRE/OWASP/custom PDFs into the KB | Knowledge Base |
 | Deep-dive a CVE, technique, IP, hash, or domain | Investigate |
-| Score answer quality against RAGAs metrics | Analytics |
+| Score answer quality with the judge model, see latency and token use | Analytics |
 | Check backend connectivity | Green/red dot, top-right of every page |
 | See which model is answering | Model chip, top-right ( `kimi-k2.7`, `minimax-m3`, etc.) |
 
@@ -128,5 +137,5 @@ history — treat it as a preview of the layout rather than production metrics.)
 - **Knowledge Base chart empty despite a nonzero vector count** — known backend reporting
   gap in `doc_type_counts`; the total count is still accurate.
 - **Investigate/Analytics shows a red error banner** — read the message directly; it's
-  passed through from the backend (e.g. "HTTP 500", "RAGAs pipeline not configured")
+  passed through from the backend (e.g. "HTTP 500", "judge model unreachable")
   rather than a generic failure.

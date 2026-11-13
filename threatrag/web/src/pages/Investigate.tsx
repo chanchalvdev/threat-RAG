@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Loader2, CheckCircle2, Circle, ArrowRight, AlertTriangle, FlaskConical, Gavel, FileText, RotateCcw } from 'lucide-react'
 import { cn } from '../lib/cn'
-import { listReports } from '../lib/api'
+import { downloadStix, listReports } from '../lib/api'
 import { useInvestigation, type IOCType, type NodeId } from '../lib/useInvestigation'
 import ReportViewer from '../components/ReportViewer'
 import SimilarReports from '../components/SimilarReports'
@@ -94,6 +94,12 @@ export default function Investigate() {
             <p className="mt-4 text-[11px] text-slate-500 font-mono">
               {result.report_id ? `Saved · ${result.report_id}` : 'Not saved (report storage unavailable)'}
               {` · ${result.iterations} research pass${result.iterations > 1 ? 'es' : ''} · ${result.sources.length} KB sources`}
+              {result.report_id && (
+                <button onClick={() => downloadStix(result.report_id!).catch(() => undefined)}
+                  className="ml-3 underline text-accent-bright hover:text-accent">
+                  Export STIX 2.1
+                </button>
+              )}
             </p>
           )}
         </div>

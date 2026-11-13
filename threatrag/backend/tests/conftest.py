@@ -36,3 +36,16 @@ def retriever(mock_store, mock_embedder):
     from app.rag.retriever import Retriever
 
     return Retriever(store=mock_store, embedder=mock_embedder)
+
+
+@pytest.fixture(autouse=True)
+def fresh_state():
+    """Each test starts with empty in-memory state (sessions, jobs, rate-limit counters)."""
+    from app.core.state import MemoryState, get_state
+
+    get_state.cache_clear()
+    yield
+    state = get_state()
+    if isinstance(state, MemoryState):
+        state.clear()
+    get_state.cache_clear()

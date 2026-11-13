@@ -1,4 +1,4 @@
-.PHONY: setup dev test lint ingest docker-up docker-down typecheck eval
+.PHONY: setup dev test lint ingest docker-up docker-down typecheck eval eval-guard test-web e2e token
 
 BACKEND=backend
 WEB=web
@@ -35,6 +35,21 @@ ingest:
 eval:
 	cd $(BACKEND) && .venv/bin/python -m app.scripts.run_eval --label $(or $(LABEL),local) --answers $(or $(ANSWERS),0) --delay 2
 
+# Injection guard against eval/injection_suite.jsonl (GUARD_MODE=llm adds the classifier pass)
+eval-guard:
+	cd $(BACKEND) && .venv/bin/python -m app.scripts.run_guard_eval
+
+test-web:
+	cd $(WEB) && npm test
+
+# Browser happy path with the API mocked: needs no backend
+e2e:
+	cd $(WEB) && npm run e2e
+
+# Dev bearer token for a JWT_SECRET-protected API: make token SUB=alice
+token:
+	cd $(BACKEND) && .venv/bin/python -m app.scripts.mint_token --sub $(or $(SUB),analyst)
+
 docker-up:
 	docker compose -f infra/docker-compose.yml up -d
 
@@ -44,7 +59,7 @@ docker-down:
 migrate:
 	cd $(BACKEND) && .venv/bin/python -m app.scripts.migrate
 
-validate: lint typecheck test
+validate: lint typecheck test test-web
 	@echo "All validation checks passed."
 
 pull-models:

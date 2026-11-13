@@ -12,6 +12,10 @@ const TOOL_META: Record<string, { icon: React.ReactNode; label: string }> = {
   threat_rag_search: { icon: <Database size={13} />, label: 'Knowledge base search' },
   nvd_cve_lookup:    { icon: <Shield size={13} />,   label: 'NVD CVE lookup' },
   web_search:        { icon: <Globe size={13} />,    label: 'Web search' },
+  cve_exploitation_lookup: { icon: <Shield size={13} />, label: 'Exploitation status (KEV, EPSS)' },
+  ip_intel_lookup:     { icon: <Globe size={13} />,  label: 'IP intelligence' },
+  domain_intel_lookup: { icon: <Globe size={13} />,  label: 'Domain intelligence' },
+  hash_intel_lookup:   { icon: <Shield size={13} />, label: 'File hash intelligence' },
 }
 
 export default function ToolCallTimeline({ calls }: { calls: ToolCallEntry[] }) {

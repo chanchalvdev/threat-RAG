@@ -10,7 +10,7 @@
 | 6 | `feat/phase6-eval-harness` | Golden set + offline evaluation | **done** 2026-11-12 |
 | 7 | `feat/phase7-hybrid-retrieval` | Hybrid search, rerank, abstention, richer corpus | **done** 2026-11-12 |
 | 8 | `feat/phase8-guardrails-observability` | Injection guard, IOC-safe sanitiser, telemetry | **done** 2026-11-12 |
-| 9 | `feat/phase9-production-shape` | Shared state, identity, integration/E2E tests, STIX export | planned |
+| 9 | `feat/phase9-production-shape` | Shared state, identity, integration/E2E tests, STIX export | **done** 2026-11-13 |
 
 Gate for every phase: `ruff check app/` clean · `mypy app/` clean · `pytest tests/unit` green with
 coverage ≥ 80% · web `lint`, `typecheck`, `build` green · files ≤ 150 lines.
@@ -185,7 +185,33 @@ Found during live testing:
 - F9.6 STIX 2.1 bundle export for a saved report (`GET /investigate/reports/{id}/stix`).
 
 Acceptance: restarting the API keeps chat history when Redis is configured; a second identity
-gets 404 on another's session; the STIX bundle validates structurally.
+cannot read another's session; the STIX bundle validates structurally.
+
+### Phase 9 result (verified live 2026-11-13 on `gemini-3.5-flash-lite`)
+
+- Chat turn → API restarted → `GET /chat/history/{id}` still returned both messages (Redis), and a
+  follow-up "Which mitigations apply to that technique?" resolved to T1110.003.
+- A second identity reading or deleting another identity's session gets an empty list and deletes
+  nothing (unit test with real JWTs). The spec said 404; an empty list was chosen so the response
+  does not reveal whether a session ID exists.
+- `CVE-2021-44228` investigation: researcher → critic (revision) → researcher → critic → reporter,
+  9 tool calls, report saved, 3 similar reports found. Its STIX export validated with the `stix2`
+  library: 1 vulnerability, 3 attack-patterns, 3 relationships, 1 report.
+- Integration tests: 9 pass against real Qdrant, Redis and Postgres (fake embedder, no model server).
+- Frontend: 6 Vitest tests and 3 Playwright tests pass (API mocked in the browser).
+- `/health/ready` reports `ready` with one working LLM provider; previously a 10 s probe timeout
+  marked the working model as failed.
+
+Found during Phase 9:
+
+| # | Finding | Status |
+|---|---|---|
+| G32 | The Chat page called `/query/stream` whenever it had no session, and that endpoint never returns one, so the UI never reached the agent, its tools or its memory | **fixed**: Chat always uses `/chat/stream`; the agent emits `source` events |
+| G33 | Readiness marked a working LLM as failed (10 s timeout, empty error text) and the stack as degraded because of an unused fallback | **fixed** |
+| G34 | Rate limiting is a fixed window, so a burst straddling two windows can reach twice the limit | open (acceptable for this scale) |
+| G35 | JWTs are HS256 with a shared secret and no revocation; there is no user store or OIDC | open (out of scope) |
+| G36 | Playwright runs against a mocked API; there is no browser test against the full compose stack | open |
+| G37 | CI has not yet run on GitHub: the workflow is validated locally command by command only | open until the branches are pushed |
 
 ---
 

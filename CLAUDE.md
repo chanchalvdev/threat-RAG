@@ -42,7 +42,8 @@ threat-RAG/
 | LLM | Gemini primary, Kimchi fallback (both OpenAI-compatible) |
 | Embeddings | Ollama nomic-embed-text (local) |
 | Vector DB | Qdrant |
-| Relational DB | PostgreSQL + pgvector (Phase 3) |
+| Relational DB | PostgreSQL + pgvector (reports, evaluation history) |
+| Shared state | Redis (chat history, ingest jobs, rate limits); in-process when `REDIS_URL` is empty |
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | Streaming | SSE (FastAPI StreamingResponse) |
 
@@ -81,6 +82,9 @@ RERANKER=none
 OLLAMA_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
 DATABASE_URL=postgresql://threatrag:threatrag@localhost:5435/threatrag
+REDIS_URL=redis://localhost:6380/0
+GUARD_MODE=heuristic
+JWT_SECRET=<empty in local dev>
 DEBUG=true
 ```
 
@@ -102,14 +106,17 @@ npm install && npm run dev
 # Tests
 cd threatrag/backend
 pytest tests/unit -v
-pytest tests/integration -v -m integration
+pytest tests/integration -v -m integration   # needs Qdrant, Redis, Postgres (no model server)
+python -m app.scripts.run_eval --label local # retrieval eval; needs the ingested corpus
+python -m app.scripts.run_guard_eval         # injection guard suite
+cd ../web && npm test && npm run e2e
 ```
 
 ## Validation Checklist (per feature)
 1. Unit tests pass (`pytest tests/unit -v`)
 2. Type check passes (`mypy app/`)
 3. Linting clean (`ruff check app/`)
-4. Integration test passes if applicable
+4. Integration test passes if applicable (`pytest tests/integration -m integration`)
 5. Manual smoke test via `/health/ready`
 
 ## Key Decisions
@@ -117,8 +124,10 @@ pytest tests/integration -v -m integration
 - Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims, with `search_query:` / `search_document:` prefixes
 - Retrieval goes through `app/rag/retriever.py` (exact ID lookup → dense + lexical RRF → optional rerank → abstain); never call `store.search` from features
 - Retrieval, prompt or model changes must be measured with `python -m app.scripts.run_eval` before merging
-- All streaming via SSE — WebSocket only in Phase 3 for agent progress
+- All streaming via SSE
 - Security hardening per OWASP LLM Top 10 is built-in, not bolted on: user text goes through `app/api/security.py:ensure_safe`, tool/feed/KB text through `app/guard/untrusted.py:wrap_untrusted`, model output through `app/rag/sanitiser.py` (`StreamSanitiser` for streams)
 - Never redact or escape IOCs (emails, hashes, IPs, attacker passwords) in output; only credential formats are redacted
 - Gemini-specific behaviour (thought signatures, cumulative stream usage) belongs in `app/core/gemini_compat.py` only
+- Per-process state is not allowed in features: sessions, jobs and counters go through `app/core/state.py:get_state`
+- The caller's identity comes from `app/api/identity.py:current_identity`; anything stored per user is keyed by `identity.sub`
 - Guard changes must be scored with `python -m app.scripts.run_guard_eval`; never tune rules on the `holdout` rows

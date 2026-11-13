@@ -68,15 +68,15 @@ async def test_nvd_tool_invalid_format():
 @pytest.mark.asyncio
 async def test_rag_search_tool_returns_sources(mock_store, retriever):
     mock_store.candidates.return_value = ([make_point("a", "T1110 brute force technique", source="mitre.json")], [])
-    result = await ThreatRAGSearchTool(retriever=retriever)._arun("brute force")
-    assert "T1110" in result
-    assert "mitre.json" in result
+    result, sources = await ThreatRAGSearchTool(retriever=retriever)._arun("brute force")
+    assert "T1110" in result and "mitre.json" in result and result.startswith("<untrusted_data")
+    assert sources[0]["source"] == "mitre.json" and sources[0]["score"] == 0.9
 
 
 @pytest.mark.asyncio
 async def test_rag_search_no_results(retriever):
-    result = await ThreatRAGSearchTool(retriever=retriever)._arun("something not in kb")
-    assert "no relevant" in result.lower()
+    result, sources = await ThreatRAGSearchTool(retriever=retriever)._arun("something not in kb")
+    assert "no relevant" in result.lower() and sources == []
 
 
 @pytest.mark.asyncio

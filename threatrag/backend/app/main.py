@@ -3,11 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.agent.session import session_manager
 from app.api.deps import get_store
 from app.api.routes import chat, evaluate, ingest, investigate, metrics, query
+from app.api.identity import rate_limit
 from app.api.security import require_api_key
 from app.core.config import get_settings
+from app.core.state import get_state
 from app.db.connection import close_pool, is_db_ready, open_pool
 from app.core.logging import configure_logging, get_logger, logging_middleware
 from app.models.schemas import HealthCheck, ReadinessCheck
@@ -26,10 +27,9 @@ async def lifespan(app: FastAPI):
     if await open_pool():
         from app.scripts.migrate import run_migrations
         await run_migrations()
-    session_manager.start()
     log.info("startup_complete", collection=store.collection, db=is_db_ready())
     yield
-    session_manager.stop()
+    await get_state().close()
     await close_pool()
     log.info("shutdown")
 
@@ -58,13 +58,13 @@ app.add_middleware(
     allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
     expose_headers=["X-Session-ID"],
 )
 app.middleware("http")(logging_middleware)
 
 for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router):
-    app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key)])
+    app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key), Depends(rate_limit)])
 
 
 @app.get("/health", response_model=HealthCheck, tags=["health"], summary="Liveness check")

@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import Any, Type
+from typing import Any, Literal, Type
 
 import httpx
 from langchain_core.tools import BaseTool
@@ -33,15 +33,17 @@ class ThreatRAGSearchTool(BaseTool):  # type: ignore[override]  # pydantic __rep
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     retriever: Any = Field(exclude=True)
+    response_format: Literal["content", "content_and_artifact"] = "content_and_artifact"  # artifact = cited sources
 
-    async def _arun(self, query: str, doc_types: list[str] | None = None) -> str:
+    async def _arun(self, query: str, doc_types: list[str] | None = None) -> tuple[str, list[dict[str, Any]]]:
         found = await self.retriever.retrieve(sanitise_tool_input(query), k=6, doc_types=doc_types)
         if found.abstain or not found.hits:
-            return "No relevant documents found in knowledge base."
-        return wrap_untrusted(self.name, "\n---\n".join(
+            return "No relevant documents found in knowledge base.", []
+        text = wrap_untrusted(self.name, "\n---\n".join(
             f"[Source: {h.payload.get('source', '')}]\n{h.payload.get('text', '')}"
             for h in found.hits
         ))
+        return text, [h.to_source().model_dump() for h in found.hits]
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         raise NotImplementedError("Use async only")

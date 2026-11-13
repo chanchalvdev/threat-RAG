@@ -1,8 +1,12 @@
 import axios from 'axios'
 
-const API_KEY = import.meta.env.VITE_API_KEY // optional backend API_KEY guard; OIDC in Phase 4B
-export const apiHeaders = (extra: Record<string, string> = {}): Record<string, string> =>
-  API_KEY ? { ...extra, 'X-API-Key': API_KEY } : extra
+const API_KEY = import.meta.env.VITE_API_KEY     // backend API_KEY guard, when enabled
+const API_TOKEN = import.meta.env.VITE_API_TOKEN // bearer token, when the backend sets JWT_SECRET
+export const apiHeaders = (extra: Record<string, string> = {}): Record<string, string> => ({
+  ...extra,
+  ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+  ...(API_TOKEN ? { Authorization: 'Bearer ' + API_TOKEN } : {}),
+})
 
 const http = axios.create({ baseURL: '/api/v1', headers: apiHeaders() })
 
@@ -109,6 +113,16 @@ export const getIngestStats = () =>
 export const getHealth = () =>
   axios.get<{ status: string }>('/health').then(r => r.data)
 
+/** Fetch with auth headers (a plain link would not send them), then hand the file to the browser. */
+export async function downloadStix(reportId: string): Promise<void> {
+  const res = await fetch('/api/v1/investigate/reports/' + reportId + '/stix', { headers: apiHeaders() })
+  if (!res.ok) throw new Error('STIX export failed (HTTP ' + res.status + ')')
+  const url = URL.createObjectURL(await res.blob())
+  const link = Object.assign(document.createElement('a'), { href: url, download: 'threatrag-' + reportId + '.stix.json' })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // --- SSE streaming ---
 
 export async function streamQuery(
@@ -116,12 +130,10 @@ export async function streamQuery(
   onEvent: (event: SSEEvent) => void,
   sessionId?: string,
 ): Promise<string | undefined> {
-  const endpoint = sessionId ? '/api/v1/chat/stream' : '/api/v1/query/stream'
-  const body = sessionId
-    ? JSON.stringify({ question, session_id: sessionId })
-    : JSON.stringify({ question, k: 6 })
+  // Always the agent endpoint: it has tools and memory, and returns the session to continue with.
+  const body = JSON.stringify({ question, session_id: sessionId ?? null })
 
-  const res = await fetch(endpoint, {
+  const res = await fetch('/api/v1/chat/stream', {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body,

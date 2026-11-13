@@ -6,10 +6,12 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.core.llm import providers
+from app.core.state import get_state
 from app.db.connection import get_pool, is_db_ready
 from app.models.schemas import ReadinessCheck
 
 CACHE_TTL_S = 60
+LLM_PROBE_TIMEOUT_S = 25  # hosted models can take 10 s+ to answer even one token under load
 _cache: dict[str, Any] = {"data": None, "expires": 0.0}
 
 
@@ -22,7 +24,7 @@ def _llm_targets(s: Settings) -> list[tuple[str, str, str, str]]:
 async def _probe_llm(base: str, key: str, model: str) -> str:
     """1-token completion: `GET /models` answers 200 even when the account has no credits (G15)."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=LLM_PROBE_TIMEOUT_S) as client:
             r = await client.post(
                 f"{base}/chat/completions",
                 headers={"Authorization": f"Bearer {key}"},
@@ -30,7 +32,15 @@ async def _probe_llm(base: str, key: str, model: str) -> str:
             )
         return "ok" if r.status_code == 200 else f"http_{r.status_code}"
     except Exception as e:
-        return f"error: {e}"
+        return f"error: {str(e) or type(e).__name__}"  # a timeout has an empty message
+
+
+async def _probe_state() -> str:
+    try:
+        await get_state().set("readiness:ping", "1", ttl_s=30)
+        return "ok"
+    except Exception as e:
+        return f"error: {str(e) or type(e).__name__}"
 
 
 async def _probe_qdrant(s: Settings) -> str:
@@ -76,11 +86,18 @@ async def check_readiness() -> ReadinessCheck:
     checks = {"qdrant": await _probe_qdrant(s)}
     if s.embedding_provider == "ollama":
         checks["ollama"] = await _probe_ollama(s)
+    llm_names = []
     for name, base, key, model in _llm_targets(s):
         checks[name] = await _probe_llm(base, key, model)
+        llm_names.append(name)
     checks["postgres"] = await _probe_postgres()
+    if s.redis_url:
+        checks["redis"] = await _probe_state()
 
-    status = "ready" if all(v == "ok" for v in checks.values()) else "degraded"
+    # One working LLM provider is enough to serve: a dead fallback is reported but does not degrade.
+    core_ok = all(v == "ok" for name, v in checks.items() if name not in llm_names)
+    llm_ok = any(checks[name] == "ok" for name in llm_names)
+    status = "ready" if core_ok and llm_ok else "degraded"
     result = ReadinessCheck(status=status, checks=checks)
     _cache.update({"data": result, "expires": now + CACHE_TTL_S})
     return result
