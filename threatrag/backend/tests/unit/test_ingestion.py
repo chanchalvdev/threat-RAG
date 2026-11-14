@@ -28,6 +28,11 @@ STIX = {"objects": [
     {"type": "relationship", "relationship_type": "uses", "source_ref": "malware--1", "target_ref": AP},
     {"type": "relationship", "relationship_type": "detects", "source_ref": DET, "target_ref": AP},
     {"type": "relationship", "relationship_type": "uses", "source_ref": GROUP, "target_ref": "malware--1"},
+    {"type": "campaign", "id": "campaign--1", "name": "SolarWinds Compromise",
+     "external_references": [{"source_name": "mitre-attack", "external_id": "C0024"}]},
+    {"type": "intrusion-set", "id": "intrusion-set--2", "name": "APT29"},
+    {"type": "relationship", "relationship_type": "uses", "source_ref": "campaign--1", "target_ref": AP},
+    {"type": "relationship", "relationship_type": "attributed-to", "source_ref": "campaign--1", "target_ref": "intrusion-set--2"},
     {"type": "identity", "id": "identity--1", "name": "MITRE"},
 ]}
 
@@ -38,6 +43,7 @@ def test_parser_skips_retired_techniques_and_joins_related_objects():
     assert t.mitigations == ["M1032 Multi-factor Authentication: Use MFA."]
     assert t.detections == ["[Windows] Many failed logons."]
     assert (t.groups, t.software) == (["APT28"], ["Mimikatz"])
+    assert t.campaigns == ["C0024 SolarWinds Compromise (attributed to APT29)"]
 
 
 def test_technique_chunks_repeat_the_header_and_strip_citation_noise():
@@ -45,7 +51,7 @@ def test_technique_chunks_repeat_the_header_and_strip_citation_noise():
     assert [c.payload["section"] for c in chunks] == ["description", "mitigations", "detection", "usage"]
     assert all("ID: T1110.001" in c.text and c.payload["technique_id"] == "T1110.001" for c in chunks)
     assert "Citation" not in chunks[0].text and "https://" not in chunks[0].text and "See T1110." in chunks[0].text
-    assert "APT28" in chunks[3].text and "Mimikatz" in chunks[3].text
+    assert "APT28" in chunks[3].text and "Mimikatz" in chunks[3].text and "attributed to APT29" in chunks[3].text
     assert len({c.key for c in chunks}) == len(chunks)
 
 
@@ -73,6 +79,11 @@ async def test_index_chunks_batches_upserts(mock_store, mock_embedder):
     assert mock_store.upsert.call_count == 2
     assert mock_store.upsert.call_args_list[1].args[0][0].payload["chunk_index"] == 100
     assert point_id("k1") == point_id("k1") != point_id("k2")
+
+
+def test_owasp_link_list_sections_are_not_indexed():
+    md = "## LLM01:2025 Prompt Injection\n\n### Description\n\nText.\n\n### Reference Links\n\n1. https://x\n\n### Related Frameworks and Taxonomies\n\n- AML.T0051"
+    assert [c.payload["section"] for c in owasp_chunks(md, "LLM01_PromptInjection.md")] == ["Description"]
 
 
 def test_owasp_chunks_carry_risk_id_and_section():

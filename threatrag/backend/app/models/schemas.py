@@ -19,6 +19,7 @@ class SourceDoc(BaseModel):
     doc_type: str
     score: float
     ref_id: str = ""  # technique ID (T1110.001) or OWASP ID (LLM01) when the chunk has one
+    exact: bool = False  # retrieved because the question named this ID, not by similarity
 
     model_config = ConfigDict(json_schema_extra={"example": _SOURCE_DOC_EXAMPLE})
 

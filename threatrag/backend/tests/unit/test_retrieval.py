@@ -61,6 +61,7 @@ async def test_exact_identifier_goes_first_and_is_always_confident(mock_store, r
     mock_store.dense_scores.return_value = {"d": 0.45, "m": 0.4}
     found = await retriever.retrieve("What is T1110.003?", k=4)
     assert [h.id for h in found.hits] == ["d", "m", "x"] and found.hits[0].exact
+    assert found.hits[0].to_source().exact and not found.hits[2].to_source().exact
     assert found.confidence == "high" and not found.abstain
     mock_store.by_ids.assert_awaited_once_with(["T1110.003"])
 
@@ -114,3 +115,34 @@ async def test_one_technique_cannot_fill_the_context(mock_store, retriever):
     mock_store.candidates.return_value = ([*crowd, make_point("other", score=0.6, technique_id="T1003")], [])
     found = await retriever.retrieve("credential guessing and dumping", k=3)
     assert [h.id for h in found.hits] == ["k0", "k1", "other"]
+
+
+@pytest.mark.parametrize("question,section", [
+    ("Which threat groups use T1558.003?", "usage"), ("How do I mitigate T1558.003?", "mitigations"),
+    ("How can I detect T1558.003 in my logs?", "detection"), ("What is T1558.003?", None),
+])
+def test_section_intent(question, section):
+    assert retriever_mod.section_intent(question) == section
+
+
+async def test_exact_matches_put_the_asked_for_section_first(mock_store, retriever):
+    mock_store.by_ids.return_value = [
+        make_point(s, technique_id="T1558.003", section=s, chunk_index=i)
+        for i, s in enumerate(["description", "mitigations", "detection", "usage"])
+    ]
+    groups = await retriever.retrieve("Which threat groups use T1558.003?", k=6)
+    assert [h.id for h in groups.hits[:3]] == ["usage", "description", "mitigations"]
+    plain = await retriever.retrieve("What is T1558.003?", k=6)
+    assert plain.hits[0].id == "description"
+
+
+async def test_each_technique_leads_with_its_description_unless_the_question_asks_otherwise(mock_store, retriever):
+    pool = [make_point("det", score=0.74, technique_id="T1558.003", section="detection"),
+            make_point("use", score=0.74, technique_id="T1558.003", section="usage"),
+            make_point("other", score=0.7, technique_id="T1558", section="description"),
+            make_point("desc", score=0.6, technique_id="T1558.003", section="description")]
+    mock_store.candidates.return_value = (pool, [])
+    plain = await retriever.retrieve("how does kerberoasting work", k=3)
+    assert [h.id for h in plain.hits] == ["desc", "det", "other"]
+    groups = await retriever.retrieve("which groups do kerberoasting", k=3)
+    assert [h.id for h in groups.hits] == ["use", "desc", "other"]

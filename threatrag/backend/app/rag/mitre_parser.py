@@ -17,6 +17,7 @@ class Technique(BaseModel):
     mitigations: list[str] = []   # "M1032 Multi-factor Authentication: how it applies"
     detections: list[str] = []
     groups: list[str] = []
+    campaigns: list[str] = []     # "C0024 SolarWinds Compromise (attributed to APT29)"
     software: list[str] = []
 
 
@@ -38,11 +39,23 @@ def _detection_text(strategy: dict[str, Any], by_id: dict[str, dict[str, Any]]) 
     return notes or [strategy.get("name", "")]
 
 
+def _campaign_attribution(objects: list[dict[str, Any]], by_id: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+    """Campaign STIX id -> names of the groups it is attributed to."""
+    owners: dict[str, list[str]] = defaultdict(list)
+    for rel in objects:
+        if rel.get("type") == "relationship" and rel.get("relationship_type") == "attributed-to" and not _retired(rel):
+            group = by_id.get(rel.get("target_ref", ""))
+            if group is not None and not _retired(group):
+                owners[rel.get("source_ref", "")].append(group.get("name", ""))
+    return owners
+
+
 def parse_techniques(stix: dict[str, Any]) -> list[Technique]:
     """Live (not revoked or deprecated) techniques, each joined to its related objects."""
     objects = stix.get("objects", [])
     by_id = {o["id"]: o for o in objects if "id" in o}
     related: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    attributed = _campaign_attribution(objects, by_id)
 
     for rel in objects:
         if rel.get("type") != "relationship" or _retired(rel):
@@ -58,6 +71,10 @@ def parse_techniques(stix: dict[str, Any]) -> list[Technique]:
             bucket["detections"].extend(_detection_text(source, by_id))
         elif kind == "uses" and source["type"] == "intrusion-set":
             bucket["groups"].append(source.get("name", ""))
+        elif kind == "uses" and source["type"] == "campaign":
+            owners = attributed.get(source["id"])
+            suffix = f" (attributed to {', '.join(owners)})" if owners else ""
+            bucket["campaigns"].append(f"{_external_id(source)} {source.get('name', '')}{suffix}".strip())
         elif kind == "uses" and source["type"] in ("malware", "tool"):
             bucket["software"].append(source.get("name", ""))
 
@@ -76,6 +93,7 @@ def parse_techniques(stix: dict[str, Any]) -> list[Technique]:
             mitigations=sorted(set(extra.get("mitigations", []))),
             detections=list(dict.fromkeys(extra.get("detections", []))),
             groups=sorted(set(extra.get("groups", [])))[:_MAX_NAMES],
+            campaigns=sorted(set(extra.get("campaigns", [])))[:_MAX_NAMES],
             software=sorted(set(extra.get("software", [])))[:_MAX_NAMES],
         ))
     return techniques

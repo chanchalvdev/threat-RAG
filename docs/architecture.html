@@ -157,7 +157,7 @@ flowchart LR
   end
 
   subgraph Data["Data and models"]
-    QD[("Qdrant<br/>3,506 chunks · dense + sparse")]
+    QD[("Qdrant<br/>3,529 chunks · dense + sparse")]
     PG[("Postgres + pgvector<br/>reports · evaluations")]
     RD[("Redis<br/>sessions · jobs · rate limits")]
     OL["Ollama<br/>nomic-embed-text 768d"]
@@ -212,8 +212,8 @@ flowchart LR
           <span class="metric"><span>ID lookup hit@6</span> 0.00 → 1.00</span>
           <span class="metric"><span>with rerank</span> hit@6 0.98 · +1.1 s</span>
           <span class="metric"><span>false abstention</span> 0.25 → 0.00</span>
-          <span class="metric"><span>faithfulness</span> 0.99</span>
-          <span class="metric"><span>citation rate</span> 0.88</span>
+          <span class="metric"><span>faithfulness</span> 1.00</span>
+          <span class="metric"><span>citation rate</span> 1.00</span>
           <span class="metric"><span>guard, held-out</span> 0.65 patterns · 0.95 with classifier</span>
           <span class="metric"><span>guard false positives</span> 0</span>
           <span class="metric"><span>unit tests</span> 249 · 89% coverage</span>
@@ -250,7 +250,7 @@ flowchart LR
           <span class="metric"><span>validated by</span> stix2 library</span>
           <span class="metric"><span>chat history</span> survived API restart</span>
         </div>
-        <p style="font-size:14px;color:var(--muted)">The corpus is 697 live ATT&amp;CK techniques (3,379 chunks with mitigations, detections and known users) and the OWASP LLM Top 10 2025 (127 chunks).</p>
+        <p style="font-size:14px;color:var(--muted)">The corpus is 697 live ATT&amp;CK techniques (3,428 chunks with mitigations, detections, groups, campaigns and software) and the OWASP LLM Top 10 2025 (101 chunks, link lists excluded).</p>
       </div>
     </div>
   </section>
@@ -286,7 +286,6 @@ flowchart LR
         <h3>To finish what is here</h3>
         <ul>
           <li>Record a short demo and deploy a rate-limited public instance</li>
-          <li>Tighten the answer prompt until every answer carries a citation (currently 0.88)</li>
           <li>Verify one Langfuse trace end to end</li>
         </ul>
       </div>

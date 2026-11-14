@@ -214,8 +214,9 @@ Found during Phase 9:
 | G37 | CI had never run on GitHub | **fixed** 2026-11-13: all four jobs pass on the pull request |
 | G39 | Header badge hard-coded a model (`kimi-k2-5`) that no longer exists | **fixed**: shows the configured model from `/api/v1/metrics` |
 | G40 | No spend ceiling for a public deployment; behind a proxy every visitor would share one rate-limit bucket | **fixed**: `LLM_DAILY_REQUEST_CAP`; image runs uvicorn with `--proxy-headers` (set `FORWARDED_ALLOW_IPS`) |
-| G41 | Source cards label raw cosine similarity as "relevance"; exact ID matches show ~50% next to unrelated passages at ~60% | open |
-| G42 | Threat-group attribution covers intrusion sets only; campaigns are not ingested, so group questions fall back to web search | open |
+| G41 | Source cards label raw cosine similarity as "relevance"; exact ID matches show ~50% next to unrelated passages at ~60% | **fixed**: exact matches carry an `exact` flag and an "exact ID match" badge; other scores are labelled as similarity |
+| G42 | Group attribution covered intrusion sets only, and exact-ID retrieval never reached the usage section, so "which groups use T1558.003?" was answered from web search with groups ATT&CK does not list | **fixed**: campaigns and their attributed groups are ingested (320 techniques); exact-ID chunks are ordered by the section the question asks about; retrieval eval unchanged (hit@6 0.95, MRR 0.89) |
+| G44 | 12% of answers lacked a citation; a stricter prompt alone made answers terse and cut technique-ID accuracy to 0.83 | **fixed** with section-aware ordering: faithfulness 1.00, citation rate 1.00, ID accuracy 0.92, false abstention 0.00 (`eval/results/v3-sections.json`) |
 | G43 | No public deployment: needs a host for the API plus Qdrant, Postgres and Redis | open (needs an account) |
 | G38 | The web image never built: its Dockerfile copied `../infra/nginx.conf` from outside the build context | **fixed**: `nginx.conf` lives in `web/`; found by the first CI run |
 

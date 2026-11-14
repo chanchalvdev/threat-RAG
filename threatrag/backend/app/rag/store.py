@@ -66,6 +66,10 @@ class QdrantStore:
                 "Set QDRANT_COLLECTION to a new name and re-ingest."
             )
 
+    async def delete_doc_type(self, doc_type: str) -> None:
+        flt = qm.Filter(must=[qm.FieldCondition(key="doc_type", match=qm.MatchValue(value=doc_type))])
+        await self._client.delete(collection_name=self.collection, points_selector=qm.FilterSelector(filter=flt))
+
     async def upsert(self, points: list[PointStruct]) -> None:
         await self._client.upsert(collection_name=self.collection, points=points)
 
