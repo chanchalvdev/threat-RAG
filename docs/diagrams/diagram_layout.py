@@ -84,7 +84,7 @@ _N = [
     Node("t_nvd", 806, 212, 168, 50, "CVE tools", "NVD · CISA KEV · EPSS"),
     Node("t_web", 806, 292, 168, 50, "Indicator intel", "Shodan · OTX · abuse.ch"),
     Node("t_fence", 806, 386, 168, 50, "Untrusted-data fence", "evidence, never instructions"),
-    Node("qdrant", 1032, 128, 212, 52, "Qdrant", "3,506 chunks · dense + sparse"),
+    Node("qdrant", 1032, 128, 212, 52, "Qdrant", "3,529 chunks · dense + sparse"),
     Node("ollama", 1032, 200, 212, 52, "Ollama", "nomic-embed-text · 768d"),
     Node("kimchi", 1032, 276, 212, 46, "Gemini", "primary · compat layer"),
     Node("gemini", 1032, 330, 212, 46, "Kimchi", "fallback on 429 / 5xx"),
