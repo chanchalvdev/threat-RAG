@@ -7,6 +7,7 @@ from app.agent.graph import run_investigation, stream_investigation
 from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
 from app.agent.technique_check import validate_techniques
 from app.api.deps import get_store
+from app.core.llm_errors import ModelUnavailable
 from app.core.logging import get_logger
 from app.db import reports as repo
 from app.db.connection import get_pool, is_db_ready
@@ -76,4 +77,5 @@ async def investigate_sse(req: InvestigationRequest) -> AsyncIterator[str]:
             })
     except Exception as exc:
         log.error("investigation_failed", ioc=req.ioc, error=str(exc))
-        yield _sse({"type": "error", "data": f"Investigation failed: {exc}"})
+        text = str(exc) if isinstance(exc, ModelUnavailable) else f"Investigation failed: {exc}"
+        yield _sse({"type": "error", "data": text})
