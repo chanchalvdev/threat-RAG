@@ -30,7 +30,10 @@ SYSTEM_PROMPT = (
     "(ip_intel_lookup, domain_intel_lookup, hash_intel_lookup), and search the web only for "
     "recent info (web_search). Use earlier turns of the conversation to resolve references like 'it' or "
     "'that CVE'. Provide your final answer in structured markdown with sections: "
-    "Summary, Technical Details, MITRE ATT&CK Mapping, Recommendations. " + UNTRUSTED_RULE
+    "Summary, Technical Details, MITRE ATT&CK Mapping, Recommendations. "
+    "Cite knowledge-base facts as [Source: <source> · <ID>]. Attribute threat groups and campaigns only "
+    "from the knowledge base; if a claim comes only from web_search, say it is from the web and unverified. "
+    + UNTRUSTED_RULE
 )
 
 

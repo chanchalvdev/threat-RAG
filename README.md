@@ -87,28 +87,35 @@ Reproduce with `make -C threatrag eval LABEL=mine ANSWERS=20`.
 | Phase 1 baseline (dense only) | 0.45 | 0.73 | 0.79 | 0.58 | 0.00 |
 | Richer corpus, dense only | 0.57 | 0.68 | 0.71 | 0.63 | 0.00 |
 | + lexical fusion (hybrid) | 0.68 | 0.88 | 0.95 | 0.79 | 1.00 |
-| + exact identifier lookup (**default**) | 0.86 | 0.91 | 0.95 | 0.89 | 1.00 |
-| + cross-encoder rerank (opt-in) | 0.89 | 0.96 | 0.98 | 0.93 | 1.00 |
+| + exact identifier lookup | 0.86 | 0.91 | 0.95 | 0.89 | 1.00 |
+| + section-aware ordering, OWASP link lists dropped (**default**) | 0.84 | 0.89 | 0.95 | 0.88 | 1.00 |
+| + cross-encoder rerank (opt-in, measured before the row above) | 0.89 | 0.96 | 0.98 | 0.93 | 1.00 |
 
 What the numbers say:
 
 - Dense embeddings could not find `T1110.003` by its ID at all. Lexical fusion fixed recall;
   exact lookup then put the right technique first.
-- Adding mitigations, detections and groups made dense-only retrieval *worse* (0.79 → 0.71)
+- Adding mitigations, detections, groups and campaigns made dense-only retrieval *worse* (0.79 → 0.71)
   because one technique's sections crowd the context. Fusion plus a two-chunk cap per
   technique recovered it.
 - Reranking is opt-in: +0.03 hit@6 for about 1.1 s per query on CPU (1,190 ms vs 82 ms).
+- Section-aware ordering costs one OWASP question its rank-1 hit (it is still in the top 6) and
+  is what fixed the answer table below: it puts a technique's description, or the section the
+  question asks about, into the context instead of two of its peripheral sections.
 
 **Answers** (20 stratified questions; generator `gemini-3.5-flash-lite`, judge `gemini-3.1-flash-lite`):
 
 | Pipeline | Faithfulness | Citation rate | Technique-ID accuracy | Correct abstention | False abstention |
 |---|---|---|---|---|---|
 | Phase 1 baseline | 1.00 | 1.00 | 0.88 | 1.00 | 0.25 |
-| Hybrid + exact (default) | 0.99 | 0.88 | 0.92 | 1.00 | 0.00 |
+| Hybrid + exact | 0.99 | 0.88 | 0.92 | 1.00 | 0.00 |
+| + section-aware ordering and citation prompt (default) | 1.00 | 1.00 | 0.92 | 1.00 | 0.00 |
 
 The baseline stayed faithful by refusing a quarter of answerable questions. The current
-pipeline answers all of them; two answers came back without a citation tag, which is the next
-prompt fix.
+pipeline answers all of them and cites every one. A stricter citation prompt on its own made
+answers terse and dropped technique-ID accuracy to 0.83; it only paid off once retrieval stopped
+crowding out descriptions. The remaining miss is a paraphrase of LSASS credential dumping that
+retrieval has never found.
 
 **Prompt-injection guard** (`eval/injection_suite.jsonl`, 45 attacks and 45 benign security
 questions; the held-out half was written after the rules were frozen):
@@ -154,6 +161,11 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
 - **Sessions belong to an identity.** With `JWT_SECRET` set, a session is stored under the
   token's subject. Another identity asking for the same session ID gets an empty history, which
   also avoids revealing that the ID exists.
+- **Answers about an ID read the right part of it.** Each technique is split into description,
+  mitigations, detection and usage (groups, campaigns with their attribution, software). When a
+  question names an ID, the section it asks about ("which groups…", "how do I detect…") is
+  retrieved first. Before this, "which groups use T1558.003?" was answered from web search with
+  groups ATT&CK does not list; now it returns exactly ATT&CK's three groups and three campaigns.
 - **Exports only what it can stand behind.** The STIX bundle includes an ATT&CK technique only
   if the report cites it *and* it exists in the ingested corpus.
 - **Idempotent ingestion.** Point IDs are `uuid5` of the source key; re-ingesting overwrites.
@@ -193,11 +205,6 @@ Tracked with their fixes in [spec/phase5-9-plan.md](spec/phase5-9-plan.md):
 - Rate limiting is a fixed window; a burst across a window boundary can reach twice the limit.
 - Playwright tests mock the API; nothing drives a browser against the full compose stack.
 - Two of 20 evaluated answers lacked a citation tag.
-- Source cards show raw cosine similarity as "relevance", so an exact ID match can look weaker
-  (about 50%) than a loosely related passage (about 60%).
-- Threat-group attribution comes only from ATT&CK intrusion sets; campaigns are not ingested, so
-  for "which groups use T1558.003" the agent falls back to web search and names groups the
-  knowledge base cannot confirm.
 - Qdrant in compose is v1.13 while the client is 1.18 (the version check is disabled, not resolved).
 
 ## Repository layout

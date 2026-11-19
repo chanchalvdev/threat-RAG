@@ -19,7 +19,7 @@ describe('SourceCard', () => {
     expect(screen.getByText('T1110.003')).toBeTruthy()
     expect(screen.getByText('MITRE ATT&CK Enterprise')).toBeTruthy()
     expect(screen.getByText('mitre attack')).toBeTruthy()
-    expect(screen.getByText('87%')).toBeTruthy()
+    expect(screen.getByText('sim 87%')).toBeTruthy()
   })
 
   it('keeps the passage collapsed until the header is clicked', () => {
@@ -27,6 +27,12 @@ describe('SourceCard', () => {
     expect(screen.queryByText(source.text)).toBeNull()
     fireEvent.click(screen.getAllByRole('button')[0])
     expect(screen.getByText(source.text)).toBeTruthy()
+  })
+
+  it('labels an exact ID match instead of showing a similarity score', () => {
+    render(<SourceCard source={{ ...source, exact: true }} index={1} />)
+    expect(screen.getByText('exact ID match')).toBeTruthy()
+    expect(screen.queryByText('sim 87%')).toBeNull()
   })
 
   it('omits the ID badge when the chunk has none', () => {

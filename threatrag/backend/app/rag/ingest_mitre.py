@@ -28,8 +28,9 @@ def _sections(t: Technique) -> list[tuple[str, str]]:
         sections.append(("mitigations", f"Mitigations for {label}:\n" + "\n".join(f"- {_clean(m)}" for m in t.mitigations)))
     if t.detections:
         sections.append(("detection", f"Detection of {label}:\n" + "\n".join(f"- {_clean(d)}" for d in t.detections)))
-    if t.groups or t.software:
+    if t.groups or t.campaigns or t.software:
         used = [f"Threat groups known to use {label}: {', '.join(t.groups)}" if t.groups else "",
+                f"Campaigns that used {label}: {', '.join(t.campaigns)}" if t.campaigns else "",
                 f"Malware and tools that implement {label}: {', '.join(t.software)}" if t.software else ""]
         sections.append(("usage", "\n".join(line for line in used if line)))
     return sections

@@ -1,4 +1,5 @@
 """Hybrid retrieval: exact identifier lookup, dense + lexical fusion, optional rerank, abstention."""
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -15,6 +16,16 @@ from app.rag.store import QdrantStore
 log = get_logger(__name__)
 Confidence = Literal["high", "low", "none"]
 _EXACT_SECTION_ORDER = {"description": 0, "Overview": 0, "Description": 0}
+# When a question names an ID, these words say which part of that entry it is asking about.
+_SECTION_INTENT = [
+    ("usage", re.compile(r"\b(groups?|actors?|apts?|campaigns?|used by|who uses|malware|tools?|software|attribut\w*)\b", re.I)),
+    ("mitigations", re.compile(r"\b(mitigat\w*|prevent\w*|defen[cs]\w*|harden\w*|protect\w*|stop)\b", re.I)),
+    ("detection", re.compile(r"\b(detect\w*|monitor\w*|hunt\w*|log|logs|events?|alerts?)\b", re.I)),
+]
+
+
+def section_intent(question: str) -> str | None:
+    return next((section for section, pattern in _SECTION_INTENT if pattern.search(question)), None)
 
 
 class Hit(BaseModel):
@@ -27,7 +38,7 @@ class Hit(BaseModel):
     def to_source(self) -> SourceDoc:
         p = self.payload
         return SourceDoc(text=p.get("text", ""), source=p.get("source", ""), doc_type=p.get("doc_type", ""),
-                         score=round(self.score, 4), ref_id=_ref(p))
+                         score=round(self.score, 4), ref_id=_ref(p), exact=self.exact)
 
 
 class Retrieval(BaseModel):
@@ -44,8 +55,26 @@ def _ref(payload: dict[str, Any]) -> str:
     return payload.get("technique_id") or payload.get("owasp_id") or ""
 
 
-def diversify(hits: list["Hit"], k: int, per_ref: int) -> list["Hit"]:
+def _prefer_sections(hits: list["Hit"], intent: str | None) -> list["Hit"]:
+    """Within one technique or risk, give its best-ranked slot to the section the question asks
+    about, else its description. Each entry keeps the slots it earned; only its own chunks swap."""
+    def preference(hit: "Hit") -> int:
+        section = hit.payload.get("section", "")
+        return 0 if intent and section == intent else 1 if section in _EXACT_SECTION_ORDER else 2
+
+    slots: dict[str, list[int]] = {}
+    for position, hit in enumerate(hits):
+        slots.setdefault(_ref(hit.payload) or f"#{position}", []).append(position)
+    ordered = list(hits)
+    for positions in slots.values():
+        for position, hit in zip(positions, sorted((hits[i] for i in positions), key=preference)):
+            ordered[position] = hit
+    return ordered
+
+
+def diversify(hits: list["Hit"], k: int, per_ref: int, intent: str | None = None) -> list["Hit"]:
     """Top k with at most `per_ref` chunks of one technique, so its sections cannot fill the context."""
+    hits = _prefer_sections(hits, intent)
     kept: list[Hit] = []
     seen: dict[str, int] = {}
     for hit in hits:
@@ -58,10 +87,12 @@ def diversify(hits: list["Hit"], k: int, per_ref: int) -> list["Hit"]:
     return kept
 
 
-def _exact_order(point: Any, ids: list[str]) -> tuple[int, int, int]:
+def _exact_order(point: Any, ids: list[str], intent: str | None) -> tuple[int, int, int]:
+    """Named ID first, then the section the question asks about, then the description."""
     p = point.payload or {}
-    ref = _ref(p)
-    return (ids.index(ref) if ref in ids else len(ids), _EXACT_SECTION_ORDER.get(p.get("section", ""), 1), p.get("chunk_index", 0))
+    ref, section = _ref(p), p.get("section", "")
+    rank = 0 if intent and section == intent else 1 + _EXACT_SECTION_ORDER.get(section, 1)
+    return (ids.index(ref) if ref in ids else len(ids), rank, p.get("chunk_index", 0))
 
 
 class Retriever:
@@ -77,7 +108,8 @@ class Retriever:
         dense, lexical = await self._store.candidates(vector, sparse, pool, doc_types)
 
         ids = extract_ids(question) if s.exact_match else []
-        exact = sorted(await self._store.by_ids(ids), key=lambda p: _exact_order(p, ids)) if ids else []
+        intent = section_intent(question)
+        exact = sorted(await self._store.by_ids(ids), key=lambda p: _exact_order(p, ids, intent)) if ids else []
         if doc_types:
             exact = [p for p in exact if (p.payload or {}).get("doc_type") in doc_types]
 
@@ -93,7 +125,7 @@ class Retriever:
             for hit, value in zip(hits, ranks):
                 hit.rerank = value
             hits.sort(key=lambda h: (not h.exact, -(h.rerank or 0.0)))  # stable: exact matches stay first
-        hits = diversify(hits, k, s.max_chunks_per_ref)
+        hits = diversify(hits, k, s.max_chunks_per_ref, intent)
 
         scores.update(await self._store.dense_scores(vector, [h.id for h in hits if h.id not in scores]))
         for hit in hits:

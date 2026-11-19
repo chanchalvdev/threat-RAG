@@ -16,6 +16,7 @@ export interface SourceDoc {
   doc_type: string
   score: number
   ref_id?: string
+  exact?: boolean
 }
 
 export interface RAGResponse {
