@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Copy, Check, Printer, Download } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { CitedMarkdown, XrefProvider } from '../lib/xref'
-import { downloadStix, type SourceDoc } from '../lib/api'
+import type { SourceDoc } from '../lib/api'
 import SourceCard from './SourceCard'
 import Rate from './Rate'
+import ReportExports from './ReportExports'
 
 interface Props {
   reportChunks: string[]
@@ -25,7 +26,6 @@ export default function ReportViewer({ reportChunks, isStreaming, sources, repor
   const headline = h1 ? h1[1].trim() : ioc
   const body = h1 ? content.slice(h1[0].length) : content
   const [copied, setCopied] = useState(false)
-  const [stixError, setStixError] = useState(false)
   const done = !isStreaming
 
   const copyMd = () => {
@@ -45,15 +45,7 @@ export default function ReportViewer({ reportChunks, isStreaming, sources, repor
               <button type="button" onClick={copyMd} disabled={!content} className="btn-line text-xs">
                 {copied ? <Check size={13} className="text-green" /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy Markdown'}
               </button>
-              <button type="button" onClick={() => window.print()} disabled={!done} className="btn-line text-xs">
-                <Printer size={13} /> Export PDF
-              </button>
-              {reportId && (
-                <button type="button" className="btn-line text-xs"
-                  onClick={() => { setStixError(false); downloadStix(reportId).catch(() => setStixError(true)) }}>
-                  <Download size={13} /> Export STIX 2.1
-                </button>
-              )}
+              <ReportExports reportId={reportId} serial={reportId ? reportSerial(reportId) : 'draft'} done={done} />
             </div>
           </div>
           {headline && (
@@ -66,7 +58,6 @@ export default function ReportViewer({ reportChunks, isStreaming, sources, repor
               </p>
             </div>
           )}
-          {stixError && <p role="alert" className="text-xs text-verm mb-3">STIX export failed. The report may not have been saved; try again in a moment.</p>}
           <CitedMarkdown content={body} sources={sources} className={cn('prose-base max-w-[72ch]', isStreaming && '[&>*:last-child]:typing')} />
           {done && (
             <div className="mt-6 pt-3 border-t border-rule flex flex-wrap items-center justify-between gap-3">

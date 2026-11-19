@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import get_store
-from app.api.routes import chat, evaluate, feedback, ingest, investigate, metrics, query
+from app.api.routes import chat, evaluate, exports, feedback, ingest, investigate, metrics, query
 from app.api.identity import rate_limit
 from app.api.security import require_api_key
 from app.core.config import get_settings
@@ -65,7 +65,7 @@ app.add_middleware(
 app.middleware("http")(logging_middleware)
 
 for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router,
-                feedback.router):
+                feedback.router, exports.router):
     app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key), Depends(rate_limit)])
 
 

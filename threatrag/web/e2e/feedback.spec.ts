@@ -63,3 +63,30 @@ test('analytics shows analyst feedback', async ({ page }) => {
   await expect(page.getByText('80% helpful')).toBeVisible()
   await expect(page.getByText('“missed APT29”')).toBeVisible()
 })
+
+test('a saved report exports as PDF and posts to a configured channel only', async ({ page }) => {
+  await mockApi(page)
+  let posted: unknown = null
+  await page.route('**/api/v1/investigate/stream', route => route.fulfill({
+    headers: { 'Content-Type': 'text/event-stream' },
+    body: sse([{ type: 'report_chunk', data: '# Threat Intelligence Report: CVE-2021-44228\n\nCritical.' },
+               { type: 'done', report_id: REPORT_ID, iterations: 1, sources: [], similar: [], tool_calls: [], critic_feedback: 'APPROVED' }]),
+  }))
+  await page.route(`**/api/v1/investigate/reports/${REPORT_ID}/pdf`, route =>
+    route.fulfill({ headers: { 'Content-Type': 'application/pdf' }, body: '%PDF-1.4 test' }))
+  await page.route(`**/api/v1/investigate/reports/${REPORT_ID}/notify`, async route => {
+    posted = route.request().postDataJSON()
+    await route.fulfill({ json: { sent: 'slack' } })
+  })
+
+  await page.goto('/investigate')
+  await page.getByRole('textbox', { name: 'Indicator' }).fill('CVE-2021-44228')
+  await page.getByRole('button', { name: 'Investigate' }).click()
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export PDF' }).click()
+  expect((await download).suggestedFilename()).toBe('threatrag-R-6C1E0D.pdf')
+  await expect(page.getByRole('button', { name: 'Send to Teams' })).toHaveCount(0)   // not configured
+  await page.getByRole('button', { name: 'Send to Slack' }).click()
+  await expect(page.getByText('Posted to Slack')).toBeVisible()
+  expect(posted).toEqual({ channel: 'slack' })
+})

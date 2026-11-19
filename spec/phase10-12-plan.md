@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 10 | `feat/phase10-analyst-feedback` | Feedback on answers and reports; analyst sends a report back | **done** 2026-11-19 |
 | 11 | `feat/phase11-fresh-knowledge` | Scheduled ATT&CK / KEV / TAXII refresh, guarded by the eval | **done** 2026-11-20 |
-| 12 | `feat/phase12-enrichment-exports` | RDAP, VirusTotal, GreyNoise; PDF export; Slack / Teams | planned |
+| 12 | `feat/phase12-enrichment-exports` | RDAP, VirusTotal, GreyNoise; PDF export; Slack / Teams | **done** 2026-11-20 |
 | 13 | `feat/phase13-deploy` | Public deployment, live Langfuse trace, live-model CI test | needs accounts |
 
 Gate for every phase: `ruff check app/` clean · `mypy app/` clean · `pytest tests/unit` green with
@@ -112,6 +112,20 @@ API workers share one KEV copy; the TAXII cursor advances; the NVD key is sent w
 Acceptance: each new source appears in tool evidence when keyed and as "not checked" when not; a
 PDF opens and contains the report; a notify call posts once to the configured URL and returns 409
 when the channel is not configured.
+
+### Phase 12 result (verified 2026-11-20)
+
+- RDAP live, no key: `example.com` and `github.com` (registration date, age, registrar, status via
+  rdap.org's redirect to Verisign), `8.8.8.8` (GOGL, Google LLC) and `185.220.101.1` (ARTIKEL10,
+  DE). A domain registered under 30 days is marked NEWLY REGISTERED.
+- VirusTotal and GreyNoise: parsing and auth headers unit-tested; not live-tested (no keys yet).
+- PDF on the compose stack: the real `CVE-2021-44228` revision exports as a 2-page PDF with the
+  IOC, the EPSS figures, the ATT&CK table, its sources and "revision of" its parent. Raw HTML in a
+  report is printed as text, never rendered: an `<img src>` would otherwise be fetched by the
+  server (SSRF from model output).
+- Slack / Teams: payloads, https-only configured URLs, 409 when not configured and 502 when the
+  webhook refuses are unit-tested; not posted to a real workspace (no webhook yet).
+- Unit 290 (coverage 91%), Playwright 9 mocked + 6 full-stack.
 
 ## Phase 13 — Deploy and verify (needs the owner's accounts)
 

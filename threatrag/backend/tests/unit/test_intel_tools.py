@@ -18,7 +18,7 @@ SHA256 = "a" * 64
 
 
 def _settings(key: str = "") -> MagicMock:
-    return MagicMock(abuseipdb_api_key=key, otx_api_key=key, abusech_auth_key=key)
+    return MagicMock(abuseipdb_api_key=key, otx_api_key=key, abusech_auth_key=key, virustotal_api_key="", greynoise_api_key="")
 
 
 def test_build_tools_includes_intel_tools():
@@ -44,6 +44,7 @@ async def test_invalid_input_is_rejected_before_any_request(tool, value, httpx_m
 
 
 async def test_ip_without_keys_uses_internetdb_and_lists_unchecked(httpx_mock):
+    httpx_mock.add_response(url="https://rdap.org/ip/8.8.8.8", status_code=404)
     httpx_mock.add_response(url="https://internetdb.shodan.io/8.8.8.8",
                             json={"ports": [53, 443], "vulns": ["CVE-2021-1"], "tags": ["dns"]})
     with patch.object(tools, "get_settings", return_value=_settings()):
@@ -53,6 +54,7 @@ async def test_ip_without_keys_uses_internetdb_and_lists_unchecked(httpx_mock):
 
 
 async def test_ip_with_keys_sends_each_auth_header(httpx_mock):
+    httpx_mock.add_response(url="https://rdap.org/ip/8.8.8.8", status_code=404)
     httpx_mock.add_response(url="https://internetdb.shodan.io/8.8.8.8", status_code=404)
     httpx_mock.add_response(url="https://api.abuseipdb.com/api/v2/check?ipAddress=8.8.8.8&maxAgeInDays=90",
                             json={"data": {"abuseConfidenceScore": 90, "totalReports": 4, "isp": "X"}})
@@ -82,6 +84,7 @@ async def test_hash_lookup_parses_malwarebazaar(httpx_mock):
 
 
 async def test_domain_lookup_parses_urlhaus(httpx_mock):
+    httpx_mock.add_response(url="https://rdap.org/domain/evil.com", status_code=404)
     httpx_mock.add_response(url="https://otx.alienvault.com/api/v1/indicators/domain/evil.com/general", status_code=404)
     httpx_mock.add_response(url="https://urlhaus-api.abuse.ch/v1/host/", json={"query_status": "ok", "url_count": "7", "firstseen": "2024"})
     httpx_mock.add_response(url="https://threatfox-api.abuse.ch/api/v1/", json={"query_status": "no_result"})

@@ -15,7 +15,7 @@ TIMEOUT_S = 10
 
 
 async def _json(method: str, url: str, **kwargs: Any) -> Any:
-    async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
+    async with httpx.AsyncClient(timeout=TIMEOUT_S, follow_redirects=True) as client:  # rdap.org redirects
         r = await client.request(method, url, **kwargs)
     if r.status_code == 404:
         return None

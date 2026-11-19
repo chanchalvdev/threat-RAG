@@ -89,6 +89,13 @@ class Settings(BaseSettings):
     otx_api_key: str = ""
     abusech_auth_key: str = ""  # shared by MalwareBazaar, URLhaus and ThreatFox
     nvd_api_key: str = ""       # raises NVD's limit from 5 to 50 requests per 30 s
+    virustotal_api_key: str = ""
+    greynoise_api_key: str = ""
+
+    # Report notifications (Phase 12). URLs come from configuration only, never from a request.
+    slack_webhook_url: str = ""
+    teams_webhook_url: str = ""
+    public_base_url: str = ""   # links in notifications point here
 
     # Feeds (Phase 11): a TAXII 2.1 collection URL (.../collections/<id>/); auth optional
     taxii_url: str = ""

@@ -16,6 +16,9 @@ tiktoken==0.13.*
 psycopg[binary,pool]==3.3.*
 redis==6.*
 PyJWT==2.*
+# Report PDF export (fpdf2 is LGPL-3.0, used unmodified as a library)
+fpdf2==2.*
+markdown==3.*
 # Cross-encoder reranker (ONNX, no torch). Loaded only when RERANKER=cross_encoder.
 fastembed==0.9.*
 # Optional tracing. Imported only when LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set.
