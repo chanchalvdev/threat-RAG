@@ -18,7 +18,8 @@ type InvestigationEvent =
   | { type: 'routing'; from: NodeId; to: NodeId; reason: string }
   | { type: 'tool_call'; node: NodeId; name: string; input: string }
   | { type: 'report_chunk'; data: string }
-  | { type: 'done'; report_id: string | null; iterations: number; sources: SourceDoc[]; similar: ReportSummary[] }
+  | { type: 'done'; report_id: string | null; iterations: number; sources: SourceDoc[]; similar: ReportSummary[]
+      critic_feedback?: string; parent_id?: string | null }
   | { type: 'error'; data: string }
 
 const IDLE: Record<NodeId, NodeState> = {
@@ -64,13 +65,14 @@ export function useInvestigation() {
     }
   }
 
-  const start = async (ioc: string, iocType: IOCType) => {
+  /** `revision` re-runs a filed report with the analyst's gaps; the new report links to its parent. */
+  const start = async (ioc: string, iocType: IOCType, revision?: { gaps: string; parentId: string }) => {
     setRunning(true); setError(null); setReportChunks([]); setResult(null); setNodes(IDLE); setIteration(0); setTrail([]); setSendBacks([])
     try {
       const res = await fetch('/api/v1/investigate/stream', {
         method: 'POST',
         headers: apiHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ioc, ioc_type: iocType }),
+        body: JSON.stringify({ ioc, ioc_type: iocType, analyst_gaps: revision?.gaps, parent_id: revision?.parentId }),
       })
       if (!res.ok || !res.body) {
         const payload = await res.json().catch(() => null)

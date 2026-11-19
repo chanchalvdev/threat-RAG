@@ -7,7 +7,7 @@
 
 | Phase | Branch | Theme | Status |
 |---|---|---|---|
-| 10 | `feat/phase10-analyst-feedback` | Feedback on answers and reports; analyst sends a report back | in progress |
+| 10 | `feat/phase10-analyst-feedback` | Feedback on answers and reports; analyst sends a report back | **done** 2026-11-19 |
 | 11 | `feat/phase11-fresh-knowledge` | Scheduled ATT&CK / KEV / TAXII refresh, guarded by the eval | planned |
 | 12 | `feat/phase12-enrichment-exports` | RDAP, VirusTotal, GreyNoise; PDF export; Slack / Teams | planned |
 | 13 | `feat/phase13-deploy` | Public deployment, live Langfuse trace, live-model CI test | needs accounts |
@@ -38,6 +38,22 @@ Still out of scope: SIEM webhooks, case management, RBAC, multi-tenancy, Helm, O
 Acceptance: a vote persists per identity and a re-vote replaces it; a send-back produces a new
 report whose parent is the first and whose research addresses the stated gaps; an injection in
 `analyst_gaps` is rejected with 400; Analytics shows the counts.
+
+### Phase 10 result (verified 2026-11-19 on the compose stack, `gemini-3.5-flash-lite`)
+
+- `CVE-2021-44228` filed, then sent back with "State the FIRST EPSS exploitation probability and
+  whether CISA KEV lists it as actively exploited": the revision's first tool call was
+  `cve_exploitation_lookup`, its summary states EPSS 100% and KEV with ransomware use, and it is
+  stored with `parent_id` and `analyst_gaps`. (The parent already carried both figures, so this
+  run proves the loop and the lineage, not an improvement in that report.)
+- Unit 268 (coverage 90%), integration 11 (real Postgres: re-vote replaces, lineage), Playwright 6
+  mocked + 5 full-stack (a vote stored in Postgres appears on Analytics).
+
+Found during Phase 10:
+
+| # | Finding | Status |
+|---|---|---|
+| G47 | A provider 429 (Gemini free tier: 15 requests/min; one investigation uses most of it) falls through to the fallback, and with Kimchi out of credits (402) the API answers a bare 500 | open: retry the primary after its `retryDelay` and return 503 with `Retry-After` |
 
 ## Phase 11 — Fresh knowledge
 

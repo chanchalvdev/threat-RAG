@@ -7,6 +7,7 @@ import IocSlip from '../components/IocSlip'
 import AgentFile from '../components/AgentFile'
 import ReportViewer, { reportSerial } from '../components/ReportViewer'
 import SimilarReports from '../components/SimilarReports'
+import SendBack from '../components/SendBack'
 
 export default function Investigate() {
   const { nodes, iteration, trail, sendBacks, reportChunks, running, error, result, start } = useInvestigation()
@@ -51,6 +52,11 @@ export default function Investigate() {
       {reportChunks.length > 0 && (
         <ReportViewer reportChunks={reportChunks} isStreaming={running} sources={result?.sources ?? []}
           reportId={result?.report_id} iterations={result?.iterations} ioc={subject?.ioc} />
+      )}
+
+      {result?.report_id && !running && subject && (
+        <SendBack key={result.report_id} criticFeedback={result.critic_feedback ?? ''} disabled={running}
+          onSend={gaps => start(subject.ioc, subject.type, { gaps, parentId: result.report_id as string })} />
       )}
 
       <SimilarReports title="Similar past investigations" reports={result?.similar ?? []}

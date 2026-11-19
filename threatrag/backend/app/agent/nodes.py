@@ -83,7 +83,9 @@ async def reporter_node(state: InvestigationState) -> dict[str, Any]:
     evidence = "\n".join(f"- {t['name']}({t['input']}) → {t['output'][:200]}" for t in state.get("tool_calls", []))
     prompt = P.REPORTER.format(
         ioc=state["ioc"],
-        feedback=state.get("critic_feedback", ""),
+        feedback=state.get("critic_feedback", "") + (
+            f"\nThe analyst sent the previous report back asking for: {gaps}" if (gaps := state.get("analyst_gaps")) else ""
+        ),
         research=f"{state['researcher_output'][:8000]}\n\nTool evidence:\n{evidence}",
         sources=sources or "none",
     )

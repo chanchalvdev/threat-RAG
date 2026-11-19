@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { CitedMarkdown, XrefProvider } from '../lib/xref'
 import { downloadStix, type SourceDoc } from '../lib/api'
 import SourceCard from './SourceCard'
+import Rate from './Rate'
 
 interface Props {
   reportChunks: string[]
@@ -68,9 +69,10 @@ export default function ReportViewer({ reportChunks, isStreaming, sources, repor
           {stixError && <p role="alert" className="text-xs text-verm mb-3">STIX export failed. The report may not have been saved; try again in a moment.</p>}
           <CitedMarkdown content={body} sources={sources} className={cn('prose-base max-w-[72ch]', isStreaming && '[&>*:last-child]:typing')} />
           {done && (
-            <p className="mt-6 pt-3 border-t border-rule text-xs text-ink-3">
-              {reportId ? `Saved as ${reportSerial(reportId)}` : 'Not saved: report storage is unavailable'}
-            </p>
+            <div className="mt-6 pt-3 border-t border-rule flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-ink-3">{reportId ? `Saved as ${reportSerial(reportId)}` : 'Not saved: report storage is unavailable'}</p>
+              {reportId && <Rate target="report" targetId={reportId} question={ioc ?? ''} answer={content} />}
+            </div>
           )}
         </article>
 

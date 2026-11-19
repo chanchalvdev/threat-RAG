@@ -3,6 +3,7 @@ import { Copy, Check, ChevronDown, AlertTriangle } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { CitedMarkdown, XrefProvider } from '../lib/xref'
 import SourceCard from './SourceCard'
+import Rate from './Rate'
 import ToolCallTimeline, { type ToolCallEntry } from './ToolCallTimeline'
 import type { SourceDoc } from '../lib/api'
 
@@ -15,11 +16,13 @@ interface Props {
   toolCalls?: ToolCallEntry[]
   isStreaming?: boolean
   error?: string
+  /** Where a vote on this answer is filed: '<session>:<turn>' and the question it answered. */
+  feedback?: { targetId: string; question: string }
 }
 
 const pad = (n: number) => String(n)
 
-export default function ChatMessage({ role, serial, content, sources = [], thoughts, toolCalls = [], isStreaming, error }: Props) {
+export default function ChatMessage({ role, serial, content, sources = [], thoughts, toolCalls = [], isStreaming, error, feedback }: Props) {
   const [showSources, setShowSources] = useState(false)
   const [copied, setCopied] = useState(false)
   const openSources = useCallback(() => setShowSources(true), [])
@@ -72,6 +75,10 @@ export default function ChatMessage({ role, serial, content, sources = [], thoug
             <CitedMarkdown content={content} sources={sources} className={cn(isStreaming && '[&>*:last-child]:typing')} />
           )}
         </article>
+
+        {feedback && !isStreaming && !error && content && (
+          <Rate target="answer" targetId={feedback.targetId} question={feedback.question} answer={content} />
+        )}
 
         {sources.length > 0 && (
           <div>

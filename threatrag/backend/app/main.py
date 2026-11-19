@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import get_store
-from app.api.routes import chat, evaluate, ingest, investigate, metrics, query
+from app.api.routes import chat, evaluate, feedback, ingest, investigate, metrics, query
 from app.api.identity import rate_limit
 from app.api.security import require_api_key
 from app.core.config import get_settings
@@ -50,6 +50,7 @@ app = FastAPI(
         {"name": "investigate", "description": "Multi-agent Researcher → Critic → Reporter IOC investigations"},
         {"name": "evaluate", "description": "LLM-judge quality scoring of RAG answers"},
         {"name": "metrics", "description": "Runtime latency, token and guard telemetry"},
+        {"name": "feedback", "description": "Analyst ratings of answers and reports; golden-set drafts"},
     ],
 )
 
@@ -63,7 +64,8 @@ app.add_middleware(
 )
 app.middleware("http")(logging_middleware)
 
-for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router):
+for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router,
+                feedback.router):
     app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key), Depends(rate_limit)])
 
 

@@ -20,14 +20,15 @@ async def save_report(report: InvestigationReport, embedding: list[float], conn:
     await conn.execute(
         """
         INSERT INTO reports (id, ioc, ioc_type, final_report, sources, ragas_scores,
-                             embedding, tool_calls, iterations)
-        VALUES (%s, %s, %s, %s, %s, %s, %s::vector, %s, %s)
+                             embedding, tool_calls, iterations, parent_id, analyst_gaps)
+        VALUES (%s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s, %s)
         """,
         (
             report_id, report.ioc, report.ioc_type, report.final_report,
             json.dumps([s.model_dump() for s in report.sources]),
             json.dumps(report.ragas_scores.model_dump() if report.ragas_scores else {}),
             _vec(embedding), json.dumps(report.tool_calls), report.iterations,
+            report.parent_id, report.analyst_gaps,
         ),
     )
     log.info("report_saved", report_id=report_id, ioc=report.ioc)
@@ -68,8 +69,8 @@ async def list_reports(limit: int, conn: AsyncConnection) -> list[ReportSummary]
 
 async def get_report(report_id: str, conn: AsyncConnection) -> InvestigationReport | None:
     cur = await conn.execute(
-        "SELECT ioc, ioc_type, final_report, sources, tool_calls, iterations, created_at::text "
-        "FROM reports WHERE id = %s",
+        "SELECT ioc, ioc_type, final_report, sources, tool_calls, iterations, created_at::text, "
+        "parent_id::text, analyst_gaps FROM reports WHERE id = %s",
         (report_id,),
     )
     row = await cur.fetchone()
@@ -78,5 +79,5 @@ async def get_report(report_id: str, conn: AsyncConnection) -> InvestigationRepo
     return InvestigationReport(
         report_id=report_id, ioc=row[0], ioc_type=row[1], final_report=row[2],
         sources=[SourceDoc(**s) for s in (row[3] or [])], tool_calls=row[4] or [],
-        iterations=row[5] or 1, created_at=row[6],
+        iterations=row[5] or 1, created_at=row[6], parent_id=row[7], analyst_gaps=row[8],
     )

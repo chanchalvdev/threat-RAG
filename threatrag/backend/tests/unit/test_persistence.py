@@ -53,7 +53,7 @@ async def test_list_reports_maps_rows():
 
 
 async def test_get_report_rebuilds_model_and_handles_missing():
-    row = ("ioc", "cve", "text", [{"text": "t", "source": "s", "doc_type": "d", "score": 0.5}], None, None, "2026")
+    row = ("ioc", "cve", "text", [{"text": "t", "source": "s", "doc_type": "d", "score": 0.5}], None, None, "2026", None, None)
     report = await reports.get_report("id1", FakeConn([row]))
     assert report is not None
     assert report.sources[0].source == "s" and report.tool_calls == [] and report.iterations == 1

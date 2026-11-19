@@ -68,6 +68,8 @@ async def investigate_sse(req: InvestigationRequest) -> AsyncIterator[str]:
                 "ioc": report.ioc,
                 "report_id": report_id,
                 "iterations": report.iterations,
+                "critic_feedback": report.critic_feedback,
+                "parent_id": report.parent_id,
                 "sources": [s.model_dump() for s in report.sources],
                 "tool_calls": report.tool_calls,
                 "similar": [s.model_dump() for s in similar],

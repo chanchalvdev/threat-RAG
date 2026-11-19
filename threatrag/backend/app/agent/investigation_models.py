@@ -36,15 +36,20 @@ class InvestigationState(TypedDict, total=False):
     tool_calls: list[ToolCallRecord]
     iteration: int
     status: NodeStatus
+    analyst_gaps: str  # set when an analyst sent a report back; the Reporter must answer it
 
 
 class InvestigationRequest(BaseModel):
     ioc: str = Field(..., min_length=3, max_length=256)
     ioc_type: IOCType
     session_id: str | None = None
+    # Send-back: the analyst's gaps open the run as a revision request; the new report links to its parent
+    analyst_gaps: str | None = Field(default=None, max_length=2000)
+    parent_id: str | None = Field(default=None, pattern=r"^[0-9a-f-]{36}$")
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"ioc": "CVE-2021-44228", "ioc_type": "cve", "session_id": None}}
+        json_schema_extra={"example": {"ioc": "CVE-2021-44228", "ioc_type": "cve", "session_id": None,
+                                       "analyst_gaps": None, "parent_id": None}}
     )
 
     @model_validator(mode="after")
@@ -70,6 +75,8 @@ class InvestigationReport(BaseModel):
     ragas_scores: RagasScores | None = None
     report_id: str | None = None
     created_at: str | None = None
+    parent_id: str | None = None
+    analyst_gaps: str | None = None
 
 
 class ReportSummary(BaseModel):

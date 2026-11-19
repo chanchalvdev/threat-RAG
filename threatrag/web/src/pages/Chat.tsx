@@ -113,7 +113,10 @@ export default function Chat() {
             <div className="space-y-2">
               {messages.map((msg, i) => (
                 <div key={i} className="animate-file-in">
-                  <ChatMessage {...msg} serial={Math.floor(i / 2) + 1} />
+                  <ChatMessage {...msg} serial={Math.floor(i / 2) + 1}
+                    feedback={msg.role === 'assistant' && sessionRef.current
+                      ? { targetId: `${sessionRef.current}:${Math.floor(i / 2) + 1}`, question: messages[i - 1]?.content ?? '' }
+                      : undefined} />
                 </div>
               ))}
             </div>
