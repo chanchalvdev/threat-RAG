@@ -181,16 +181,19 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
 
 ```bash
 cd threatrag/backend
-ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 249 tests, 89% coverage
+ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 258 tests
 pytest tests/integration -m integration      # 9 tests on real Qdrant, Redis and Postgres
 python -m app.scripts.run_guard_eval         # injection suite
 cd ../web
-npm run lint && npm run typecheck && npm test && npm run build   # 6 component/client tests
+npm run lint && npm run typecheck && npm test && npm run build   # 7 component/client tests
 npm run e2e                                  # 3 Playwright tests, API mocked in the browser
+# Full stack, nothing mocked (WEB_PORT if 3000 is taken; STACK_LLM=1 adds a live model test)
+docker compose -f ../infra/docker-compose.yml up -d --build --wait backend frontend
+npm run e2e:stack                            # 4 browser tests through nginx to the real API and stores
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above with service containers, then Docker
-builds and a Trivy scan.
+CI (`.github/workflows/ci.yml`) runs all of the above with service containers, brings up the
+composed images for the full-stack browser tests, then Docker builds and a Trivy scan.
 
 ## Known limits
 
@@ -202,9 +205,8 @@ Tracked with their fixes in [spec/phase5-9-plan.md](spec/phase5-9-plan.md):
   regression tests, not benchmarks. One question moves a category by 4–12 points.
 - Langfuse tracing is wired and unit-tested with a mocked client, not verified against a live project.
 - Identity is a shared-secret HS256 token with no user store, revocation or OIDC.
-- Rate limiting is a fixed window; a burst across a window boundary can reach twice the limit.
-- Playwright tests mock the API; nothing drives a browser against the full compose stack.
-- Two of 20 evaluated answers lacked a citation tag.
+- The full-stack browser tests in CI run without a model key, so the answer path is only covered
+  locally (`STACK_LLM=1`).
 - Qdrant in compose is v1.13 while the client is 1.18 (the version check is disabled, not resolved).
 
 ## Repository layout

@@ -7,7 +7,8 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      # The qdrant image ships without curl; bash's /dev/tcp probes the port instead
+      test: ["CMD", "bash", "-c", ":> /dev/tcp/127.0.0.1/6333"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,7 +54,8 @@ services:
       - ../backend/.env
     environment:  # inside the compose network the services are reached by name
       QDRANT_URL: http://qdrant:6333
-      OLLAMA_URL: http://ollama:11434
+      # A native Ollama (faster on macOS) is reachable as STACK_OLLAMA_URL=http://host.docker.internal:11434
+      OLLAMA_URL: ${STACK_OLLAMA_URL:-http://ollama:11434}
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://threatrag:threatrag@postgres:5432/threatrag
     ports:
@@ -66,7 +68,8 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # python:3.13-slim has no curl
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -76,7 +79,7 @@ services:
       context: ../web
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy
