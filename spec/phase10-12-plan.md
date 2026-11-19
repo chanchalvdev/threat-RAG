@@ -54,6 +54,7 @@ Found during Phase 10:
 | # | Finding | Status |
 |---|---|---|
 | G47 | A provider 429 (Gemini free tier: 15 requests/min; one investigation uses most of it) falls through to the fallback, and with Kimchi out of credits (402) the API answers a bare 500 | open: retry the primary after its `retryDelay` and return 503 with `Retry-After` |
+| G48 | The backend image never contained `migrations/`: on a fresh database the migrator found no files, logged success and created no tables (found by the first CI full-stack run of `/feedback`; local Postgres already had tables) | **fixed**: image copies `migrations/`; the migrator raises when it finds none; verified on an empty database |
 
 ## Phase 11 — Fresh knowledge
 

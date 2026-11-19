@@ -26,6 +26,7 @@ RUN addgroup --system app && adduser --system --ingroup app app
 # --prefix installs land in /usr/local, where the runtime interpreter looks for them
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
+COPY migrations/ ./migrations/
 
 RUN chown -R app:app /app
 USER app

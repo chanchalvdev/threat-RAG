@@ -99,3 +99,11 @@ async def test_injection_in_analyst_gaps_is_rejected(client):
         r = await client.post("/api/v1/investigate/stream", json=body)
     assert r.status_code == 400 and not run.called
     assert (await client.post("/api/v1/investigate/stream", json={**body, "analyst_gaps": None, "parent_id": "nope"})).status_code == 422
+
+
+async def test_migrations_refuse_to_report_success_with_no_files(tmp_path):
+    """G48: the image shipped without migrations/, so a fresh database started with no tables."""
+    from app.scripts import migrate
+
+    with patch.object(migrate, "MIGRATIONS_DIR", tmp_path), pytest.raises(RuntimeError, match="No migrations"):
+        await migrate.run_migrations()
