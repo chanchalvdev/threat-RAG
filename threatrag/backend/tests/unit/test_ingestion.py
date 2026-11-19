@@ -1,153 +1,92 @@
-"""Unit tests for ingestion pipeline."""
+"""Ingestion: MITRE parsing and chunking, OWASP Markdown chunking, PDF, and the shared indexer."""
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
-from qdrant_client.models import PointStruct
+from app.rag.ingest_mitre import ingest_mitre_attack, technique_chunks
+from app.rag.ingest_owasp import owasp_chunks
+from app.rag.ingestion import Chunk, index_chunks, ingest_pdf, point_id
+from app.rag.mitre_parser import parse_techniques
 
-from app.rag.ingestion import ingest_mitre_attack, ingest_pdf
-
-
-MOCK_STIX = {
-    "objects": [
-        {
-            "type": "attack-pattern",
-            "name": "Password Guessing",
-            "description": "Adversaries may attempt to guess passwords.",
-            "external_references": [
-                {"source_name": "mitre-attack", "external_id": "T1110.001"}
-            ],
-            "kill_chain_phases": [{"phase_name": "credential-access"}],
-            "x_mitre_platforms": ["Windows", "Linux"],
-        },
-        {
-            "type": "attack-pattern",
-            "name": "Process Injection",
-            "description": "Adversaries may inject code into processes.",
-            "external_references": [
-                {"source_name": "mitre-attack", "external_id": "T1055"}
-            ],
-            "kill_chain_phases": [{"phase_name": "defense-evasion"}],
-            "x_mitre_platforms": ["Windows"],
-        },
-        {
-            "type": "identity",  # non-attack-pattern — should be skipped
-            "name": "MITRE",
-        },
-    ]
-}
+AP, COA, GROUP, DET = "attack-pattern--1", "course-of-action--1", "intrusion-set--1", "x-mitre-detection-strategy--1"
+STIX = {"objects": [
+    {"type": "attack-pattern", "id": AP, "name": "Password Guessing",
+     "description": "Adversaries may guess passwords.(Citation: Foo 2020) See [T1110](https://attack.mitre.org/T1110).",
+     "external_references": [{"source_name": "mitre-attack", "external_id": "T1110.001"}],
+     "kill_chain_phases": [{"phase_name": "credential-access"}], "x_mitre_platforms": ["Windows", "Linux"]},
+    {"type": "attack-pattern", "id": "attack-pattern--2", "name": "Old Technique", "revoked": True,
+     "external_references": [{"source_name": "mitre-attack", "external_id": "T9999"}]},
+    {"type": "attack-pattern", "id": "attack-pattern--3", "name": "Deprecated", "x_mitre_deprecated": True,
+     "external_references": [{"source_name": "mitre-attack", "external_id": "T9998"}]},
+    {"type": "course-of-action", "id": COA, "name": "Multi-factor Authentication",
+     "external_references": [{"source_name": "mitre-attack", "external_id": "M1032"}]},
+    {"type": "intrusion-set", "id": GROUP, "name": "APT28"},
+    {"type": "malware", "id": "malware--1", "name": "Mimikatz"},
+    {"type": "x-mitre-detection-strategy", "id": DET, "name": "Detect guessing", "x_mitre_analytic_refs": ["x-mitre-analytic--1"]},
+    {"type": "x-mitre-analytic", "id": "x-mitre-analytic--1", "description": "Many failed logons.", "x_mitre_platforms": ["Windows"]},
+    {"type": "relationship", "relationship_type": "mitigates", "source_ref": COA, "target_ref": AP, "description": "Use MFA."},
+    {"type": "relationship", "relationship_type": "uses", "source_ref": GROUP, "target_ref": AP},
+    {"type": "relationship", "relationship_type": "uses", "source_ref": "malware--1", "target_ref": AP},
+    {"type": "relationship", "relationship_type": "detects", "source_ref": DET, "target_ref": AP},
+    {"type": "relationship", "relationship_type": "uses", "source_ref": GROUP, "target_ref": "malware--1"},
+    {"type": "identity", "id": "identity--1", "name": "MITRE"},
+]}
 
 
-@pytest.mark.asyncio
-async def test_ingest_mitre_attack_chunks(mock_store, mock_embedder, tmp_path):
-    stix_file = tmp_path / "mitre_attack.json"
-    stix_file.write_text(json.dumps(MOCK_STIX))
-
-    count = await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
-
-    assert count == 2
-    mock_embedder.embed_batch.assert_awaited_once()
-    assert mock_store.upsert.call_count >= 1
+def test_parser_skips_retired_techniques_and_joins_related_objects():
+    (t,) = parse_techniques(STIX)
+    assert (t.technique_id, t.tactics, t.platforms) == ("T1110.001", ["credential-access"], ["Windows", "Linux"])
+    assert t.mitigations == ["M1032 Multi-factor Authentication: Use MFA."]
+    assert t.detections == ["[Windows] Many failed logons."]
+    assert (t.groups, t.software) == (["APT28"], ["Mimikatz"])
 
 
-@pytest.mark.asyncio
-async def test_reingest_produces_identical_point_ids(mock_store, mock_embedder, tmp_path):
-    stix_file = tmp_path / "mitre_attack.json"
-    stix_file.write_text(json.dumps(MOCK_STIX))
-    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
-    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
+def test_technique_chunks_repeat_the_header_and_strip_citation_noise():
+    chunks = technique_chunks(parse_techniques(STIX)[0])
+    assert [c.payload["section"] for c in chunks] == ["description", "mitigations", "detection", "usage"]
+    assert all("ID: T1110.001" in c.text and c.payload["technique_id"] == "T1110.001" for c in chunks)
+    assert "Citation" not in chunks[0].text and "https://" not in chunks[0].text and "See T1110." in chunks[0].text
+    assert "APT28" in chunks[3].text and "Mimikatz" in chunks[3].text
+    assert len({c.key for c in chunks}) == len(chunks)
+
+
+def test_long_descriptions_are_split_not_truncated():
+    stix = {"objects": [{**STIX["objects"][0], "description": "Sentence about credential access. " * 150}]}
+    chunks = technique_chunks(parse_techniques(stix)[0])
+    assert len(chunks) > 3 and sum(len(c.text) for c in chunks) > 4000
+
+
+async def test_ingest_mitre_is_idempotent_and_writes_both_vectors(mock_store, mock_embedder, tmp_path):
+    path = tmp_path / "mitre.json"
+    path.write_text(json.dumps(STIX))
+    assert await ingest_mitre_attack(str(path), mock_store, mock_embedder) == 4
+    await ingest_mitre_attack(str(path), mock_store, mock_embedder)
     first, second = (call.args[0] for call in mock_store.upsert.call_args_list)
     assert [p.id for p in first] == [p.id for p in second]
+    point = first[0]
+    assert set(point.vector) == {"dense", "sparse"} and point.vector["sparse"].indices
+    assert point.payload["doc_type"] == "mitre_attack" and point.payload["embedding_model"]
 
 
-@pytest.mark.asyncio
-async def test_ingest_mitre_attack_payload_fields(mock_store, mock_embedder, tmp_path):
-    stix_file = tmp_path / "mitre_attack.json"
-    stix_file.write_text(json.dumps(MOCK_STIX))
-
-    upserted_points: list[PointStruct] = []
-
-    async def capture_upsert(points):
-        upserted_points.extend(points)
-
-    mock_store.upsert.side_effect = capture_upsert
-
-    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
-
-    assert len(upserted_points) == 2
-    p = upserted_points[0]
-    assert "technique_id" in p.payload
-    assert "tactic" in p.payload
-    assert p.payload["doc_type"] == "mitre_attack"
-    assert p.payload["technique_id"] == "T1110.001"
-
-
-@pytest.mark.asyncio
-async def test_ingest_mitre_batch_size(mock_store, mock_embedder, tmp_path):
-    many_techniques = [
-        {
-            "type": "attack-pattern",
-            "name": f"Technique {i}",
-            "description": "Description",
-            "external_references": [{"source_name": "mitre-attack", "external_id": f"T{i:04d}"}],
-            "kill_chain_phases": [],
-            "x_mitre_platforms": [],
-        }
-        for i in range(150)
-    ]
-    stix_file = tmp_path / "big.json"
-    stix_file.write_text(json.dumps({"objects": many_techniques}))
-
-    await ingest_mitre_attack(str(stix_file), mock_store, mock_embedder)
+async def test_index_chunks_batches_upserts(mock_store, mock_embedder):
+    chunks = [Chunk(key=f"k{i}", text=f"text {i}", payload={"source": "s", "doc_type": "custom"}) for i in range(150)]
+    assert await index_chunks(chunks, mock_store, mock_embedder) == 150
     assert mock_store.upsert.call_count == 2
+    assert mock_store.upsert.call_args_list[1].args[0][0].payload["chunk_index"] == 100
+    assert point_id("k1") == point_id("k1") != point_id("k2")
 
 
-@pytest.mark.asyncio
-async def test_ingest_pdf_basic(mock_store, mock_embedder, tmp_path):
-    pdf_path = tmp_path / "test.pdf"
-    fake_doc = MagicMock()
-    fake_doc.page_content = "This is a security document about threats."
-    fake_doc.metadata = {"page": 0}
-
-    with patch("app.rag.ingestion.PyPDFLoader") as mock_loader, \
-         patch("app.rag.ingestion._splitter") as mock_splitter:
-        mock_loader.return_value.load.return_value = [fake_doc]
-        splitter_instance = MagicMock()
-        splitter_instance.split_documents.return_value = [fake_doc, fake_doc]
-        mock_splitter.return_value = splitter_instance
-
-        count = await ingest_pdf(str(pdf_path), "custom", mock_store, mock_embedder)
-
-    assert count == 2
-    mock_embedder.embed_batch.assert_awaited_once()
+def test_owasp_chunks_carry_risk_id_and_section():
+    md = "## LLM07:2025 System Prompt Leakage\n\n### Description\n\nPrompts may leak.\n\n### Prevention\n\nNo secrets in prompts."
+    chunks = owasp_chunks(md, "LLM07_SystemPromptLeakage.md")
+    assert [c.payload["section"] for c in chunks] == ["Description", "Prevention"]
+    assert all(c.payload["owasp_id"] == "LLM07" and "LLM07: System Prompt Leakage" in c.text for c in chunks)
 
 
-@pytest.mark.asyncio
-async def test_ingest_pdf_payload_fields(mock_store, mock_embedder, tmp_path):
-    pdf_path = tmp_path / "test.pdf"
-    fake_doc = MagicMock()
-    fake_doc.page_content = "Sample text content."
-    fake_doc.metadata = {"page": 1}
-
-    captured: list[PointStruct] = []
-
-    async def cap(pts):
-        captured.extend(pts)
-
-    mock_store.upsert.side_effect = cap
-
-    with patch("app.rag.ingestion.PyPDFLoader") as ml, patch("app.rag.ingestion._splitter") as ms:
-        ml.return_value.load.return_value = [fake_doc]
-        s = MagicMock()
-        s.split_documents.return_value = [fake_doc]
-        ms.return_value = s
-
-        await ingest_pdf(str(pdf_path), "owasp_llm", mock_store, mock_embedder)
-
-    assert len(captured) == 1
-    p = captured[0]
-    for field in ("text", "source", "doc_type", "chunk_index"):
-        assert field in p.payload
-    assert p.payload["doc_type"] == "owasp_llm"
+async def test_ingest_pdf_payload(mock_store, mock_embedder, tmp_path):
+    page = MagicMock(page_content="Sample threat report text.", metadata={"page": 1})
+    with patch("app.rag.ingestion.PyPDFLoader") as loader:
+        loader.return_value.load.return_value = [page]
+        assert await ingest_pdf(str(tmp_path / "report.pdf"), "custom", mock_store, mock_embedder) == 1
+    payload = mock_store.upsert.call_args.args[0][0].payload
+    assert payload["source"] == "report.pdf" and payload["doc_type"] == "custom" and payload["page"] == 1
+    assert payload["text"] == "Sample threat report text."

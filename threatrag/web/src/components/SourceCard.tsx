@@ -37,6 +37,7 @@ export default function SourceCard({ source, index, defaultExpanded = false }: P
         <span className={cn('px-1.5 py-0.5 rounded border text-[11px] font-medium shrink-0', style)}>
           {source.doc_type.replace('_', ' ')}
         </span>
+        {source.ref_id && <span className="font-mono text-xs text-accent-bright shrink-0">{source.ref_id}</span>}
         <span className="text-slate-300 truncate flex-1">{source.source}</span>
         <span className="text-slate-500 text-xs font-mono shrink-0">{pct}%</span>
         <div className="w-12 h-1.5 bg-surface-600 rounded-full shrink-0" title={`Relevance ${pct}%`}>

@@ -5,7 +5,8 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.rag.embedder import get_embedder
-from app.rag.ingestion import ingest_mitre_attack, ingest_owasp_llm
+from app.rag.ingest_mitre import ingest_mitre_attack
+from app.rag.ingest_owasp import ingest_owasp_llm
 from app.rag.store import QdrantStore
 
 log = get_logger(__name__)
@@ -14,7 +15,8 @@ log = get_logger(__name__)
 async def main() -> None:
     configure_logging()
     s = get_settings()
-    store = QdrantStore(url=s.qdrant_url, collection=s.qdrant_collection, vector_size=s.embedding_dim)
+    store = QdrantStore(url=s.qdrant_url, collection=s.qdrant_collection, vector_size=s.embedding_dim,
+                        api_key=s.qdrant_api_key)
     await store.ensure_collection()
     embedder = get_embedder(s)
 

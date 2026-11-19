@@ -17,16 +17,12 @@ Response 200:
 ```json
 {
   "status": "ready",
-  "checks": { "qdrant": "ok", "ollama": "ok", "llm": "ok" }
+  "checks": { "qdrant": "ok", "ollama": "ok", "llm": "ok", "llm_fallback": "http_402", "postgres": "ok", "redis": "ok" }
 }
 ```
-Response 503 (any check fails):
-```json
-{
-  "status": "degraded",
-  "checks": { "qdrant": "ok", "ollama": "error: connection refused", "llm": "ok" }
-}
-```
+Always HTTP 200. `status` is `ready` when every core dependency is `ok` and at least one LLM
+provider completes a one-token request; otherwise `degraded`. `redis` appears only when
+`REDIS_URL` is set, `llm_fallback` only when two providers are configured. Cached for 60 s.
 
 ---
 
@@ -183,6 +179,59 @@ Response 200:
   "overall": 0.89
 }
 ```
+
+---
+
+## Changes in Phases 6–9
+
+These supersede the older examples above where they differ.
+
+### Authentication and limits
+- `X-API-Key: <key>` is required on `/api/v1/*` when `API_KEY` is set.
+- `Authorization: Bearer <HS256 JWT>` is required on `/api/v1/*` when `JWT_SECRET` is set. The token
+  needs `sub` and `exp`. Chat sessions belong to `sub`.
+- Each identity (or client address when anonymous) gets `RATE_LIMIT_PER_MINUTE` requests per minute.
+  Over the limit: `429` with a `Retry-After` header.
+
+### POST /api/v1/query (response)
+```json
+{
+  "answer": "…",
+  "sources": [{ "text": "…", "source": "MITRE ATT&CK Enterprise", "doc_type": "mitre_attack", "score": 0.74, "ref_id": "T1110.003" }],
+  "tokens_used": 1385,
+  "confidence": "high",
+  "abstained": false
+}
+```
+`confidence` is `high`, `low` or `none`. When nothing relevant is retrieved the API does not call
+the model: `abstained` is `true`, `confidence` is `none`, `sources` is empty and `answer` says so.
+`score` is always cosine similarity to the question.
+
+### POST /api/v1/chat/stream (events)
+Adds `{"type": "source", "data": <SourceDoc>}` for each passage the knowledge-base tool retrieved.
+`GET /api/v1/chat/history/{session_id}` returns `[]` for an unknown session and for a session that
+belongs to another identity. `DELETE` clears only the caller's own session.
+
+### POST /api/v1/ingest/owasp
+Ingests the OWASP Top 10 for LLM Applications 2025 from the project's Markdown sources.
+Job status is stored in shared state for 24 hours.
+
+### GET /api/v1/investigate/reports/{report_id}/stix
+Response 200, `application/stix+json;version=2.1`, as a download. A STIX 2.1 bundle with the report,
+the investigated indicator (or `vulnerability` for a CVE), the ATT&CK techniques the report cites
+that exist in the ingested corpus, and the relationships between them. 404 if the report is unknown.
+
+### GET /api/v1/metrics
+```json
+{
+  "routes": { "POST /api/v1/query": { "requests": 12, "errors_5xx": 0, "p50_ms": 2140.2, "p95_ms": 5310.9 } },
+  "llm": { "calls": 31, "tokens_in": 48210, "tokens_out": 7904, "p50_ms": 3100.0, "p95_ms": 9200.4,
+           "estimated_cost_usd": null, "by_model": { "gemini-3.5-flash-lite": { "calls": 31, "tokens_in": 48210, "tokens_out": 7904 } } },
+  "counters": { "guard_blocked": 2, "guard_allowed": 40, "rag_abstained": 3 }
+}
+```
+Per process, reset on restart. Latency covers the last 500 requests per route (time to first byte
+for streams). `estimated_cost_usd` is `null` until `LLM_PRICE_IN_PER_MTOK` / `LLM_PRICE_OUT_PER_MTOK` are set.
 
 ---
 

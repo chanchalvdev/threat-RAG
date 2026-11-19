@@ -6,6 +6,7 @@ import structlog
 from fastapi import Request, Response
 
 from app.core.config import get_settings
+from app.core.telemetry import telemetry
 
 
 def configure_logging() -> None:
@@ -49,5 +50,7 @@ async def logging_middleware(request: Request, call_next: Callable) -> Response:
         status_code=response.status_code,
         duration_ms=duration_ms,
     )
+    route = getattr(request.scope.get("route"), "path", "unmatched")
+    telemetry.record_request(f"{request.method} {route}", response.status_code, duration_ms / 1000)
     response.headers["X-Request-ID"] = request_id
     return response

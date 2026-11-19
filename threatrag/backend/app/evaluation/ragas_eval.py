@@ -42,11 +42,10 @@ async def evaluate_response(
 ) -> RagasScores:
     """Score an answer on RAGAs metrics. Returns zeros (never raises) if the judge fails."""
     try:
-        reference = ground_truth or answer
         tasks = [
             judge.faithfulness(answer, contexts),
             judge.answer_relevancy(question, answer),
-            judge.context_precision(question, reference, contexts),
+            judge.context_precision(question, ground_truth, contexts),
         ]
         if ground_truth is not None:
             tasks.append(judge.context_recall(ground_truth, contexts))

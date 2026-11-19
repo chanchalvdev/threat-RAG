@@ -12,7 +12,7 @@ from app.models.schemas import SourceDoc
 IOCType = Literal["ip", "hash", "domain", "cve", "technique"]
 NodeStatus = Literal["researching", "critiquing", "reporting", "done", "error"]
 
-_IOC_PATTERNS: dict[str, re.Pattern[str]] = {
+IOC_PATTERNS: dict[str, re.Pattern[str]] = {
     "cve": re.compile(r"^CVE-\d{4}-\d{4,}$"),
     "technique": re.compile(r"^T\d{4}(\.\d{3})?$"),
     "hash": re.compile(r"^([a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64})$"),
@@ -53,7 +53,7 @@ class InvestigationRequest(BaseModel):
         value = value.upper() if self.ioc_type in ("cve", "technique") else value.lower()
         if self.ioc_type == "ip":
             ipaddress.ip_address(value)  # raises ValueError → 422
-        elif not _IOC_PATTERNS[self.ioc_type].match(value):
+        elif not IOC_PATTERNS[self.ioc_type].match(value):
             raise ValueError(f"'{self.ioc}' is not a valid {self.ioc_type} indicator")
         self.ioc = value
         return self

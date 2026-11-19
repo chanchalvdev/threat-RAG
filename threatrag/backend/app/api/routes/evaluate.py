@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.identity import llm_budget
 from app.core.logging import get_logger
 from app.db.connection import get_pool, is_db_ready
 from app.db.evaluations import EvaluationRecord, list_evaluations, save_evaluation
@@ -8,6 +9,7 @@ from app.evaluation.ragas_eval import RagasScores, evaluate_response
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/evaluate", tags=["evaluate"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 
 
 class EvaluateRequest(BaseModel):
@@ -33,6 +35,7 @@ class EvaluateRequest(BaseModel):
 
 @router.post(
     "",
+    dependencies=spends,
     response_model=RagasScores,
     summary="Score a RAG answer with RAGAs metrics",
     description="Computes faithfulness, answer relevancy, context precision (and context recall "

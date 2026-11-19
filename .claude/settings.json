@@ -22,7 +22,12 @@
       "Bash(cp*)",
       "Bash(mv*)",
       "Bash(git*)",
-      "Bash(jq*)"
+      "Bash(jq*)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "ClaudeInChromeDomain(aistudio.google.com)",
+      "ClaudeInChromeDomain(www.abuseipdb.com)",
+      "ClaudeInChromeDomain(otx.alienvault.com)",
+      "ClaudeInChromeDomain(auth.abuse.ch)"
     ]
   },
   "hooks": {

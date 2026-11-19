@@ -13,6 +13,7 @@ from app.agent.investigation_models import (
 )
 from app.agent.nodes import critic_node, reporter_node, researcher_node, route_after_critic
 from app.core.logging import get_logger
+from app.rag.sanitiser import StreamSanitiser
 
 __all__ = ["InvestigationReport", "InvestigationRequest", "ReportSummary", "run_investigation", "stream_investigation"]
 
@@ -72,6 +73,7 @@ async def stream_investigation(req: InvestigationRequest) -> AsyncIterator[dict[
     """Map LangGraph v2 events to UI events. Last event is {'type': 'complete', 'report': ...}."""
     state: dict[str, Any] = dict(_initial_state(req))
     researcher_runs = 0
+    clean = StreamSanitiser()
     async for ev in _graph.astream_events(state, version="v2", config=GRAPH_CONFIG):
         kind, name = ev["event"], ev.get("name", "")
         node = ev.get("metadata", {}).get("langgraph_node")
@@ -81,6 +83,8 @@ async def stream_investigation(req: InvestigationRequest) -> AsyncIterator[dict[
         elif kind == "on_chain_end" and name in NODES and node == name:
             update = ev["data"].get("output") or {}
             if isinstance(update, dict):
+                if name == "reporter" and (tail := clean.flush()):
+                    yield {"type": "report_chunk", "data": tail}
                 state.update(update)
                 yield {"type": "node_done", "node": name, "summary": _summary(name, update)}
                 if name == "critic":
@@ -90,6 +94,8 @@ async def stream_investigation(req: InvestigationRequest) -> AsyncIterator[dict[
             yield {"type": "tool_call", "node": "researcher", "name": name, "input": str(ev["data"].get("input", ""))[:200]}
         elif kind == "on_chat_model_stream" and node == "reporter":
             chunk = ev["data"].get("chunk")
-            if chunk is not None and chunk.content:
-                yield {"type": "report_chunk", "data": str(chunk.content)}
+            if chunk is not None and chunk.content and (safe := clean.feed(str(chunk.content))):
+                yield {"type": "report_chunk", "data": safe}
+    if tail := clean.flush():
+        yield {"type": "report_chunk", "data": tail}
     yield {"type": "complete", "report": _to_report(state)}  # type: ignore[arg-type]

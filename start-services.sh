@@ -89,7 +89,7 @@ start() {
   # 1. Postgres — the app's own container (Qdrant/Ollama are assumed already
   #    running as shared containers used by other local projects too).
   c_step "1/4 Starting Postgres ($POSTGRES_CONTAINER on port 5435)"
-  (cd "$ROOT_DIR/threatrag/infra" && docker compose up -d postgres)
+  (cd "$ROOT_DIR/threatrag/infra" && docker compose up -d postgres redis)
   wait_for "Postgres" "http://localhost:5435" 20 2>/dev/null || true # curl can't speak pg wire proto, just give it a beat
   sleep 2
   docker exec "$POSTGRES_CONTAINER" pg_isready -U threatrag >/dev/null 2>&1 \

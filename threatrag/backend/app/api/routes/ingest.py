@@ -1,5 +1,6 @@
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
@@ -7,15 +8,18 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from app.api.deps import get_store
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.state import get_state
 from app.models.schemas import IngestAccepted, IngestJob, IngestStats
 from app.rag.embedder import get_embedder
-from app.rag.ingestion import ingest_mitre_attack, ingest_owasp_llm, ingest_pdf
+from app.rag.ingest_mitre import ingest_mitre_attack
+from app.rag.ingest_owasp import ingest_owasp_llm
+from app.rag.ingestion import ingest_pdf
 from app.rag.store import QdrantStore
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
-_jobs: dict[str, IngestJob] = {}
+JOB_TTL_S = 24 * 3600
 DATA_DIR = Path("data/sources")
 _DOC_TYPE_RE = re.compile(r"^[a-z0-9_]{1,32}$")
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]")
@@ -29,36 +33,25 @@ def _safe_pdf_name(filename: str | None) -> str:
     return name
 
 
-async def _run_pdf(job_id: str, path: str, doc_type: str, store: QdrantStore) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
+async def _put(job: IngestJob) -> None:
+    await get_state().set(f"ingest:job:{job.job_id}", job.model_dump_json(), ttl_s=JOB_TTL_S)
+
+
+async def _run(job_id: str, work: Callable[[], Awaitable[int]]) -> None:
+    await _put(IngestJob(job_id=job_id, status="processing"))
     try:
-        embedder = get_embedder()
-        count = await ingest_pdf(path, doc_type, store, embedder)
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
+        count = await work()
+        await _put(IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count))
     except Exception as exc:
         log.error("ingest_failed", job_id=job_id, error=str(exc))
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
+        await _put(IngestJob(job_id=job_id, status="failed", error=str(exc)))
 
 
-async def _run_mitre(job_id: str, store: QdrantStore) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
-    try:
-        embedder = get_embedder()
-        path = str(DATA_DIR / "mitre_attack.json")
-        count = await ingest_mitre_attack(path, store, embedder)
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
-    except Exception as exc:
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
-
-
-async def _run_owasp(job_id: str, store: QdrantStore) -> None:
-    _jobs[job_id] = IngestJob(job_id=job_id, status="processing")
-    try:
-        embedder = get_embedder()
-        count = await ingest_owasp_llm(store, embedder)
-        _jobs[job_id] = IngestJob(job_id=job_id, status="completed", chunks_processed=count, total_chunks=count)
-    except Exception as exc:
-        _jobs[job_id] = IngestJob(job_id=job_id, status="failed", error=str(exc))
+async def _start(bg: BackgroundTasks, work: Callable[[], Awaitable[int]]) -> str:
+    job_id = str(uuid.uuid4())
+    await _put(IngestJob(job_id=job_id, status="pending"))  # visible to /status before the task starts
+    bg.add_task(_run, job_id, work)
+    return job_id
 
 
 @router.post(
@@ -87,9 +80,7 @@ async def ingest_pdf_route(
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     dest = DATA_DIR / name
     dest.write_bytes(data)
-    job_id = str(uuid.uuid4())
-    _jobs[job_id] = IngestJob(job_id=job_id, status="pending")
-    bg.add_task(_run_pdf, job_id, str(dest), doc_type, store)
+    job_id = await _start(bg, lambda: ingest_pdf(str(dest), doc_type, store, get_embedder()))
     return IngestAccepted(job_id=job_id, filename=name)
 
 
@@ -97,27 +88,24 @@ async def ingest_pdf_route(
     "/mitre",
     response_model=IngestAccepted,
     status_code=202,
-    summary="Ingest the bundled MITRE ATT&CK dataset",
-    description="Reads data/sources/mitre_attack.json, chunks and embeds it in the background.",
+    summary="Ingest MITRE ATT&CK Enterprise",
+    description="Downloads the STIX bundle if it is not cached, then indexes every live technique with its "
+    "mitigations, detections and known users in the background.",
 )
 async def ingest_mitre_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    job_id = str(uuid.uuid4())
-    bg.add_task(_run_mitre, job_id, store)
-    return IngestAccepted(job_id=job_id)
+    path = str(DATA_DIR / "mitre_attack.json")
+    return IngestAccepted(job_id=await _start(bg, lambda: ingest_mitre_attack(path, store, get_embedder())))
 
 
 @router.post(
     "/owasp",
     response_model=IngestAccepted,
     status_code=202,
-    summary="Ingest the bundled OWASP LLM Top 10 dataset",
-    description="Reads data/sources/owasp_llm_top10.pdf, chunks and embeds it in the background.",
+    summary="Ingest the OWASP Top 10 for LLM Applications (2025)",
+    description="Fetches the ten risk pages from the OWASP project repository and indexes them in the background.",
 )
 async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(get_store)) -> IngestAccepted:
-    job_id = str(uuid.uuid4())
-    bg.add_task(_run_owasp, job_id, store)
-    return IngestAccepted(job_id=job_id)
+    return IngestAccepted(job_id=await _start(bg, lambda: ingest_owasp_llm(store, get_embedder())))
 
 
 @router.get(
@@ -127,10 +115,10 @@ async def ingest_owasp_route(bg: BackgroundTasks, store: QdrantStore = Depends(g
     responses={404: {"description": "Job not found", "content": {"application/json": {"example": {"detail": "Job not found"}}}}},
 )
 async def get_status(job_id: str) -> IngestJob:
-    job = _jobs.get(job_id)
-    if not job:
+    raw = await get_state().get(f"ingest:job:{job_id}")
+    if raw is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return IngestJob.model_validate_json(raw)
 
 
 @router.get(

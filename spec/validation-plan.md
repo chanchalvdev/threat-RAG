@@ -12,13 +12,23 @@
 - Pass: all tests green, coverage ≥ 80%
 
 ### Level 3: Integration Tests (before merge to main)
-- Requires: Qdrant + Ollama running locally
+- Requires: Qdrant, Redis and Postgres (`docker compose up -d qdrant redis postgres`); no model server
 - `pytest tests/integration -v -m integration`
-- Pass: retrieval quality tests hit expected keywords
+- Pass: all green. Tests for an unreachable service are skipped, so check the skip count is 0.
 
-### Level 4: E2E Tests (before deploy)
-- Playwright against live stack
-- Pass: all 3 E2E scenarios complete without error
+### Level 3b: Offline evaluation (before merging retrieval, prompt or model changes)
+- Requires: Qdrant + embedder with the corpus ingested; `--answers` also needs the LLM and judge
+- `python -m app.scripts.run_eval --label <name> [--answers 20 --delay 2]`
+- Pass: no metric in `eval/results/<name>.json` regresses against the last recorded run
+
+### Level 3c: Injection guard (before merging guard or prompt changes)
+- `python -m app.scripts.run_guard_eval` (add `GUARD_MODE=llm` for the classifier pass)
+- Pass: no false positives; block rate does not fall. Never tune rules on `holdout` rows.
+
+### Level 4: Frontend and E2E Tests (every PR)
+- `npm test` (Vitest) and `npm run e2e` (Playwright, API mocked in the browser)
+- Pass: all scenarios complete without error
+- Not covered: a browser run against the full compose stack with a live model
 
 ---
 

@@ -34,7 +34,9 @@ export default function KnowledgeBase() {
           const s = await getIngestStatus(job.job_id)
           setJobs(prev => prev.map(j => j.job_id === job.job_id ? { ...j, status: s } : j))
           if (s.status === 'completed') refetchStats()
-        } catch {}
+        } catch {
+          // transient poll failure: retry on the next tick
+        }
       }
     }, 2_000)
     return () => clearInterval(id)

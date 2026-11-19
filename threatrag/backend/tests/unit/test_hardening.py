@@ -47,13 +47,13 @@ async def test_api_key_guard_rejects_wrong_key():
         await require_api_key("s3cret")
 
 
-def test_agent_memory_includes_prior_turns_and_is_bounded():
+async def test_agent_memory_includes_prior_turns_and_is_bounded():
     agent = ThreatIntelAgent(tools=[])
-    agent._remember("What is Log4Shell?", "CVE-2021-44228 ...")
+    await agent._remember("What is Log4Shell?", "CVE-2021-44228 ...")
     payload = agent._input("What is its CVSS score?")["messages"]
     assert [m.content for m in payload] == ["What is Log4Shell?", "CVE-2021-44228 ...", "What is its CVSS score?"]
 
     for i in range(30):
-        agent._remember(f"q{i}", f"a{i}")
+        await agent._remember(f"q{i}", f"a{i}")
     assert len(agent._messages) == MAX_HISTORY_MESSAGES
     assert agent.get_history()[-1] == {"role": "assistant", "content": "a29"}

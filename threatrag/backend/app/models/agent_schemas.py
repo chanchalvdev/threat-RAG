@@ -1,5 +1,5 @@
 import json
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel
 
@@ -26,6 +26,11 @@ class AgentToolResult(BaseModel):
     tool_use_id: str
 
 
+class AgentSource(BaseModel):
+    type: Literal["source"] = "source"
+    data: dict[str, Any]  # a SourceDoc the knowledge-base tool retrieved
+
+
 class AgentChunk(BaseModel):
     type: Literal["chunk"] = "chunk"
     data: str
@@ -43,7 +48,7 @@ class AgentError(BaseModel):
 
 
 AgentStreamEvent = Annotated[
-    Union[AgentThought, AgentToolCall, AgentToolResult, AgentChunk, AgentDone, AgentError],
+    Union[AgentThought, AgentToolCall, AgentToolResult, AgentSource, AgentChunk, AgentDone, AgentError],
     "discriminated by type",
 ]
 

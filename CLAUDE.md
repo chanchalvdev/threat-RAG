@@ -2,8 +2,9 @@
 
 ## Project Overview
 ThreatRAG is a cybersecurity RAG (Retrieval-Augmented Generation) pipeline that ingests
-MITRE ATT&CK, OWASP Top 10, and CVE data into a vector store, then answers analyst
-questions with cited sources and an agentic investigation workflow.
+MITRE ATT&CK and the OWASP LLM Top 10 into a vector store (CVE data is looked up live
+from NVD, not ingested), then answers analyst questions with cited sources and an agentic
+investigation workflow.
 
 ## Repository Layout
 ```
@@ -18,6 +19,8 @@ threat-RAG/
 │   ├── phase1.md         # Phase 1 detailed spec
 │   ├── phase2.md         # Phase 2 detailed spec
 │   ├── phase3.md         # Phase 3 detailed spec
+│   ├── phase4.md         # Phase 4: Phase-3 completion + hardening
+│   ├── phase5-9-plan.md  # Phases 5–9 plan and status
 │   ├── api-schema.md     # API contract
 │   └── validation-plan.md # test & validation checklist
 └── threatrag/            # Application code
@@ -33,27 +36,29 @@ threat-RAG/
 ## Tech Stack
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.11 + FastAPI + Pydantic v2 |
-| RAG | LangChain 0.3 + LCEL |
-| Agents | LangGraph 0.2 (Phase 3) |
-| LLM | Kimchi kimi-k2.6 (OpenAI-compatible) |
+| Backend | Python 3.13 + FastAPI + Pydantic v2 |
+| RAG | LangChain 1.3 |
+| Agents | LangGraph 1.2 |
+| LLM | Gemini primary, Kimchi fallback (both OpenAI-compatible) |
 | Embeddings | Ollama nomic-embed-text (local) |
 | Vector DB | Qdrant |
-| Relational DB | PostgreSQL + pgvector (Phase 3) |
+| Relational DB | PostgreSQL + pgvector (reports, evaluation history) |
+| Shared state | Redis (chat history, ingest jobs, rate limits); in-process when `REDIS_URL` is empty |
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | Streaming | SSE (FastAPI StreamingResponse) |
 
-## LLM Configuration (Kimchi)
-- Provider: Kimchi Inference (OpenAI-compatible endpoint)
-- Model: `kimi-k2-5` / `kimi-k2.6`
-- Base URL: `https://api.kimchiinference.com/v1` (check env)
-- Key env var: `KIMCHI_API_KEY`
-- Use `langchain_openai.ChatOpenAI` with `openai_api_base` pointing to Kimchi endpoint
+## LLM Configuration
+- Primary: Gemini via its OpenAI-compatible endpoint — `GEMINI_API_KEY`, `GEMINI_MODEL`
+- Fallback: Kimchi — `KIMCHI_API_KEY`, `KIMCHI_BASE_URL`, `LLM_MODEL`
+- Always build models with `app/core/llm.py:get_llm`; never construct `ChatOpenAI` elsewhere
+- Providers retire model IDs: if a call returns 404, list `/models` and update the env var
 
 ## Development Phases
 - **Phase 1** — RAG Core: ingest MITRE ATT&CK + OWASP, basic Q&A with citations
 - **Phase 2** — Agentic Loop: ReAct agent, NVD CVE tool, web search, SSE chat
-- **Phase 3** — Multi-Agent: LangGraph Researcher→Critic→Reporter, RAGAs eval, pgvector
+- **Phase 3** — Multi-Agent: LangGraph Researcher→Critic→Reporter, LLM-judge eval, pgvector
+- **Phase 4** — Phase-3 completion and hardening (`spec/phase4.md`)
+- **Phases 5–9** — packaging, eval harness, hybrid retrieval, guardrails, production shape (`spec/phase5-9-plan.md`)
 
 ## Code Conventions
 - Each file ≤ 150 lines — split at logical boundaries
@@ -65,14 +70,21 @@ threat-RAG/
 
 ## Environment Variables (backend/.env)
 ```
-KIMCHI_API_KEY=<your-key>
-KIMCHI_BASE_URL=https://api.kimchiinference.com/v1
-LLM_MODEL=kimi-k2-5
+GEMINI_API_KEY=<your-key>
+GEMINI_MODEL=gemini-3.5-flash-lite
+KIMCHI_API_KEY=<optional fallback key>
+KIMCHI_BASE_URL=https://llm.kimchi.dev/openai/v1
+LLM_MODEL=kimi-k2.7
 QDRANT_URL=http://localhost:6333
-QDRANT_COLLECTION=threat_intel
+QDRANT_COLLECTION=threat_intel_v2
+RETRIEVAL_MODE=hybrid
+RERANKER=none
 OLLAMA_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
-DATABASE_URL=postgresql://threatrag:threatrag@localhost:5432/threatrag
+DATABASE_URL=postgresql://threatrag:threatrag@localhost:5435/threatrag
+REDIS_URL=redis://localhost:6380/0
+GUARD_MODE=heuristic
+JWT_SECRET=<empty in local dev>
 DEBUG=true
 ```
 
@@ -94,18 +106,28 @@ npm install && npm run dev
 # Tests
 cd threatrag/backend
 pytest tests/unit -v
-pytest tests/integration -v -m integration
+pytest tests/integration -v -m integration   # needs Qdrant, Redis, Postgres (no model server)
+python -m app.scripts.run_eval --label local # retrieval eval; needs the ingested corpus
+python -m app.scripts.run_guard_eval         # injection guard suite
+cd ../web && npm test && npm run e2e
 ```
 
 ## Validation Checklist (per feature)
 1. Unit tests pass (`pytest tests/unit -v`)
 2. Type check passes (`mypy app/`)
 3. Linting clean (`ruff check app/`)
-4. Integration test passes if applicable
+4. Integration test passes if applicable (`pytest tests/integration -m integration`)
 5. Manual smoke test via `/health/ready`
 
 ## Key Decisions
-- Kimchi is the primary LLM (not Anthropic) — use `langchain_openai.ChatOpenAI` + custom base_url
-- Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims
-- All streaming via SSE — WebSocket only in Phase 3 for agent progress
-- Security hardening per OWASP LLM Top 10 is built-in, not bolted on
+- Gemini is the primary LLM and Kimchi the fallback (not Anthropic) — use `app/core/llm.py:get_llm`, which builds `langchain_openai.ChatOpenAI` with a custom base_url
+- Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims, with `search_query:` / `search_document:` prefixes
+- Retrieval goes through `app/rag/retriever.py` (exact ID lookup → dense + lexical RRF → optional rerank → abstain); never call `store.search` from features
+- Retrieval, prompt or model changes must be measured with `python -m app.scripts.run_eval` before merging
+- All streaming via SSE
+- Security hardening per OWASP LLM Top 10 is built-in, not bolted on: user text goes through `app/api/security.py:ensure_safe`, tool/feed/KB text through `app/guard/untrusted.py:wrap_untrusted`, model output through `app/rag/sanitiser.py` (`StreamSanitiser` for streams)
+- Never redact or escape IOCs (emails, hashes, IPs, attacker passwords) in output; only credential formats are redacted
+- Gemini-specific behaviour (thought signatures, cumulative stream usage) belongs in `app/core/gemini_compat.py` only
+- Per-process state is not allowed in features: sessions, jobs and counters go through `app/core/state.py:get_state`
+- The caller's identity comes from `app/api/identity.py:current_identity`; anything stored per user is keyed by `identity.sub`
+- Guard changes must be scored with `python -m app.scripts.run_guard_eval`; never tune rules on the `holdout` rows

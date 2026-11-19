@@ -1,20 +1,23 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.api.identity import llm_budget
 from app.api.deps import get_chain
+from app.api.security import ensure_safe
 from app.core.logging import get_logger
 from app.models.schemas import QueryRequest, RAGResponse
 from app.rag.chain import ThreatRAGChain
-from app.rag.sanitiser import is_injection
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/query", tags=["query"])
+spends = [Depends(llm_budget)]  # routes below that call a model count against the daily cap
 
 
 @router.post(
     "",
+    dependencies=spends,
     response_model=RAGResponse,
     summary="Ask a question against the RAG knowledge base",
     description="Runs retrieval-augmented generation over the ingested MITRE ATT&CK / "
@@ -27,14 +30,13 @@ router = APIRouter(prefix="/query", tags=["query"])
     },
 )
 async def query(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -> RAGResponse:
-    if is_injection(req.question):
-        log.warning("injection_detected", question=req.question[:100])
-        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
+    await ensure_safe(req.question)
     return await chain.query(req)
 
 
 @router.post(
     "/stream",
+    dependencies=spends,
     summary="Ask a question and stream the answer via SSE",
     description="Same as POST /query but streams Server-Sent Events: `source` events "
     "(one per retrieved document), then `chunk` events (answer tokens), then a final `done` event.",
@@ -59,8 +61,7 @@ async def query(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -
     },
 )
 async def query_stream(req: QueryRequest, chain: ThreatRAGChain = Depends(get_chain)) -> StreamingResponse:
-    if is_injection(req.question):
-        raise HTTPException(status_code=400, detail="Request rejected: potential prompt injection detected")
+    await ensure_safe(req.question)
 
     async def _event_stream():
         async for text, sources in chain.astream(req):
