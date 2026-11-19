@@ -132,6 +132,19 @@ async def test_rate_limit_returns_429_with_retry_after(client):
         assert (await client.get("/api/v1/metrics")).status_code == 200
 
 
+async def test_rate_limit_burst_across_a_minute_boundary_is_capped(client):
+    """G34: a fixed window allowed `limit` at 0:59 and again at 1:00 (2x in two seconds)."""
+    limited = _settings(rate_limit_per_minute=3)
+    with patch.object(identity, "get_settings", return_value=limited), patch.object(identity.time, "time") as clock:
+        clock.return_value = 600 * 60 + 59.0           # last second of a minute
+        before = [(await client.get("/api/v1/metrics")).status_code for _ in range(3)]
+        clock.return_value = 601 * 60 + 1.0            # first second of the next
+        after = [(await client.get("/api/v1/metrics")).status_code for _ in range(3)]
+        clock.return_value = 603 * 60 + 1.0            # two minutes later the budget is back
+        later = (await client.get("/api/v1/metrics")).status_code
+    assert before == [200, 200, 200] and after == [429, 429, 429] and later == 200
+
+
 NAMES = {"T1190": "Exploit Public-Facing Application", "T1059": "Command and Scripting Interpreter"}
 
 

@@ -208,9 +208,9 @@ Found during Phase 9:
 |---|---|---|
 | G32 | The Chat page called `/query/stream` whenever it had no session, and that endpoint never returns one, so the UI never reached the agent, its tools or its memory | **fixed**: Chat always uses `/chat/stream`; the agent emits `source` events |
 | G33 | Readiness marked a working LLM as failed (10 s timeout, empty error text) and the stack as degraded because of an unused fallback | **fixed** |
-| G34 | Rate limiting is a fixed window, so a burst straddling two windows can reach twice the limit | open (acceptable for this scale) |
+| G34 | Rate limiting is a fixed window, so a burst straddling two windows can reach twice the limit | **fixed** 2026-11-19: sliding-window counter (previous minute weighted by overlap); boundary-burst unit test |
 | G35 | JWTs are HS256 with a shared secret and no revocation; there is no user store or OIDC | open (out of scope) |
-| G36 | Playwright runs against a mocked API; there is no browser test against the full compose stack | open |
+| G36 | Playwright runs against a mocked API; there is no browser test against the full compose stack | **fixed** 2026-11-19: `e2e-stack/` drives nginx → API → Qdrant/Postgres/Redis with nothing mocked; CI `stack` job; `STACK_LLM=1` adds a live answer test (passes on `gemini-3.5-flash-lite`, 20 s) |
 | G37 | CI had never run on GitHub | **fixed** 2026-11-13: all four jobs pass on the pull request |
 | G39 | Header badge hard-coded a model (`kimi-k2-5`) that no longer exists | **fixed**: shows the configured model from `/api/v1/metrics` |
 | G40 | No spend ceiling for a public deployment; behind a proxy every visitor would share one rate-limit bucket | **fixed**: `LLM_DAILY_REQUEST_CAP`; image runs uvicorn with `--proxy-headers` (set `FORWARDED_ALLOW_IPS`) |
@@ -219,6 +219,8 @@ Found during Phase 9:
 | G44 | 12% of answers lacked a citation; a stricter prompt alone made answers terse and cut technique-ID accuracy to 0.83 | **fixed** with section-aware ordering: faithfulness 1.00, citation rate 1.00, ID accuracy 0.92, false abstention 0.00 (`eval/results/v3-sections.json`) |
 | G43 | No public deployment: needs a host for the API plus Qdrant, Postgres and Redis | open (needs an account) |
 | G38 | The web image never built: its Dockerfile copied `../infra/nginx.conf` from outside the build context | **fixed**: `nginx.conf` lives in `web/`; found by the first CI run |
+| G45 | The compose stack could never start: Qdrant's and the backend's healthchecks call `curl`, which neither image ships, so `backend` waited on an unhealthy Qdrant forever | **fixed** 2026-11-19 (found by G36): bash `/dev/tcp` probe for Qdrant, Python `urllib` for the backend |
+| G46 | The backend image never ran: `pip --prefix=/install` packages were not on `sys.path` (`No module named 'uvicorn'`). CI only built and scanned it | **fixed** 2026-11-19 (found by G36): packages copied into `/usr/local`; the CI `stack` job now runs the image |
 
 ---
 

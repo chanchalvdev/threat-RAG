@@ -1,0 +1,760 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T16:11:51+00:00",
+  "title": "Design System: ThreatRAG",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Card Stock Ground",
+        "canonical": "rgb(227 219 199)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#28251E",
+          "#464236",
+          "#676151",
+          "#888271",
+          "#AAA598",
+          "#CDC9BF",
+          "#F0EEE9"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card Stock",
+        "canonical": "rgb(247 242 229)",
+        "tonalRamp": [
+          "#0C0B09",
+          "#272520",
+          "#45423B",
+          "#656157",
+          "#868278",
+          "#A8A59C",
+          "#CBC9C3",
+          "#F0EEEB"
+        ]
+      },
+      "card-2": {
+        "role": "neutral",
+        "displayName": "Worn Card",
+        "canonical": "rgb(237 230 212)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#27251E",
+          "#464238",
+          "#666153",
+          "#888273",
+          "#A9A599",
+          "#CCC9C0",
+          "#F0EEE9"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "rgb(24 25 26)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252526",
+          "#414243",
+          "#606162",
+          "#818284",
+          "#A4A5A6",
+          "#C8C9CA",
+          "#EEEEEF"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "rgb(70 66 55)",
+        "tonalRamp": [
+          "#0C0B09",
+          "#272520",
+          "#45423A",
+          "#656157",
+          "#868277",
+          "#A8A59C",
+          "#CBC9C3",
+          "#F0EEEB"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink 3",
+        "canonical": "rgb(95 88 74)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#28251F",
+          "#464138",
+          "#676054",
+          "#888274",
+          "#AAA49A",
+          "#CCC9C1",
+          "#F0EEEA"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "rgb(205 194 169)",
+        "tonalRamp": [
+          "#0D0B07",
+          "#29251B",
+          "#484133",
+          "#69604C",
+          "#8B816D",
+          "#ACA494",
+          "#CEC9BD",
+          "#F1EEE7"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "rgb(24 25 26)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252526",
+          "#414243",
+          "#606162",
+          "#818284",
+          "#A4A5A6",
+          "#C8C9CA",
+          "#EEEEEF"
+        ]
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Cabinet Rail",
+        "canonical": "rgb(29 42 38)",
+        "tonalRamp": [
+          "#090C0B",
+          "#212725",
+          "#3B4441",
+          "#586560",
+          "#788681",
+          "#9DA8A4",
+          "#C3CBC8",
+          "#EBF0EE"
+        ]
+      },
+      "rail-2": {
+        "role": "neutral",
+        "displayName": "Cabinet Rail Hover",
+        "canonical": "rgb(42 58 51)",
+        "tonalRamp": [
+          "#090C0A",
+          "#202724",
+          "#3A4540",
+          "#56655E",
+          "#77877F",
+          "#9CA9A3",
+          "#C2CCC7",
+          "#EBF0ED"
+        ]
+      },
+      "rail-ink": {
+        "role": "neutral",
+        "displayName": "Rail Ink",
+        "canonical": "rgb(220 227 218)",
+        "tonalRamp": [
+          "#0A0C0A",
+          "#232623",
+          "#3F433E",
+          "#5E635C",
+          "#7F847D",
+          "#A2A7A1",
+          "#C7CAC6",
+          "#EDEFED"
+        ]
+      },
+      "rail-ink-2": {
+        "role": "neutral",
+        "displayName": "Rail Ink 2",
+        "canonical": "rgb(157 176 164)",
+        "tonalRamp": [
+          "#090C0A",
+          "#202723",
+          "#3A453E",
+          "#56665C",
+          "#77877D",
+          "#9CA9A1",
+          "#C3CCC6",
+          "#EBF0EC"
+        ]
+      },
+      "vermilion": {
+        "role": "primary",
+        "displayName": "Vermilion Stamp",
+        "canonical": "rgb(184 50 27)",
+        "tonalRamp": [
+          "#1B0301",
+          "#451007",
+          "#752112",
+          "#A8331F",
+          "#CF5742",
+          "#E68775",
+          "#FBB6A7",
+          "#FFE4DB"
+        ]
+      },
+      "cobalt": {
+        "role": "secondary",
+        "displayName": "Index Cobalt",
+        "canonical": "rgb(37 94 158)",
+        "tonalRamp": [
+          "#030B18",
+          "#0F2640",
+          "#20436C",
+          "#31639C",
+          "#5385C1",
+          "#81A8D8",
+          "#B0CCEE",
+          "#E0F0FF"
+        ]
+      },
+      "ochre": {
+        "role": "tertiary",
+        "displayName": "File Ochre",
+        "canonical": "rgb(138 95 0)",
+        "tonalRamp": [
+          "#120900",
+          "#332103",
+          "#573C07",
+          "#7F5910",
+          "#A27B39",
+          "#BFA06F",
+          "#DCC6A4",
+          "#FAEDD9"
+        ]
+      },
+      "ochre-fill": {
+        "role": "tertiary",
+        "displayName": "File Ochre Fill",
+        "canonical": "rgb(217 162 27)",
+        "tonalRamp": [
+          "#130900",
+          "#352000",
+          "#5C3B00",
+          "#855700",
+          "#A87900",
+          "#C49F56",
+          "#E0C695",
+          "#FCEDD1"
+        ]
+      },
+      "cabinet-green": {
+        "role": "tertiary",
+        "displayName": "Cabinet Green",
+        "canonical": "rgb(45 122 76)",
+        "tonalRamp": [
+          "#030F06",
+          "#0E2C19",
+          "#1D4D30",
+          "#2E7148",
+          "#519368",
+          "#81B391",
+          "#B1D3BA",
+          "#E1F5E6"
+        ]
+      },
+      "act": {
+        "role": "primary",
+        "displayName": "Action Vermilion",
+        "canonical": "rgb(184 50 27)",
+        "tonalRamp": [
+          "#1B0301",
+          "#451007",
+          "#752112",
+          "#A8331F",
+          "#CF5742",
+          "#E68775",
+          "#FBB6A7",
+          "#FFE4DB"
+        ]
+      },
+      "on-act": {
+        "role": "primary",
+        "displayName": "On Action",
+        "canonical": "rgb(255 255 255)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "ground-dark": {
+        "role": "neutral",
+        "displayName": "Card Stock Ground (dark theme)",
+        "canonical": "rgb(15 20 17)",
+        "tonalRamp": [
+          "#0A0B0B",
+          "#232624",
+          "#3F4341",
+          "#5D635F",
+          "#7E8480",
+          "#A2A6A3",
+          "#C7CAC8",
+          "#EDEFEE"
+        ]
+      },
+      "card-dark": {
+        "role": "neutral",
+        "displayName": "Card Stock (dark theme)",
+        "canonical": "rgb(24 32 27)",
+        "tonalRamp": [
+          "#0A0C0A",
+          "#222624",
+          "#3E4440",
+          "#5B645E",
+          "#7C857F",
+          "#A0A7A2",
+          "#C5CBC7",
+          "#ECEFED"
+        ]
+      },
+      "card-2-dark": {
+        "role": "neutral",
+        "displayName": "Worn Card (dark theme)",
+        "canonical": "rgb(32 42 36)",
+        "tonalRamp": [
+          "#090C0A",
+          "#222623",
+          "#3D4440",
+          "#5A645E",
+          "#7B857F",
+          "#9FA7A2",
+          "#C5CBC7",
+          "#ECEFED"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Ink (dark theme)",
+        "canonical": "rgb(236 230 214)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#27251F",
+          "#454239",
+          "#666155",
+          "#878275",
+          "#A9A59A",
+          "#CCC9C1",
+          "#F0EEEA"
+        ]
+      },
+      "ink-2-dark": {
+        "role": "neutral",
+        "displayName": "Ink 2 (dark theme)",
+        "canonical": "rgb(195 188 170)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#27251E",
+          "#464237",
+          "#666152",
+          "#888273",
+          "#A9A599",
+          "#CCC9C0",
+          "#F0EEE9"
+        ]
+      },
+      "ink-3-dark": {
+        "role": "neutral",
+        "displayName": "Ink 3 (dark theme)",
+        "canonical": "rgb(156 149 132)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#27251E",
+          "#464237",
+          "#676153",
+          "#888273",
+          "#AAA599",
+          "#CCC9C0",
+          "#F0EEE9"
+        ]
+      },
+      "rule-dark": {
+        "role": "neutral",
+        "displayName": "Rule (dark theme)",
+        "canonical": "rgb(46 58 51)",
+        "tonalRamp": [
+          "#090C0A",
+          "#212723",
+          "#3C443F",
+          "#59655E",
+          "#7A867E",
+          "#9EA8A2",
+          "#C4CBC7",
+          "#EBF0ED"
+        ]
+      },
+      "rule-strong-dark": {
+        "role": "neutral",
+        "displayName": "Strong Rule (dark theme)",
+        "canonical": "rgb(174 184 170)",
+        "tonalRamp": [
+          "#0A0C09",
+          "#232621",
+          "#3E443C",
+          "#5C6459",
+          "#7D8579",
+          "#A1A79E",
+          "#C6CBC4",
+          "#EDEFEB"
+        ]
+      },
+      "rail-dark": {
+        "role": "neutral",
+        "displayName": "Cabinet Rail (dark theme)",
+        "canonical": "rgb(9 13 11)",
+        "tonalRamp": [
+          "#0A0B0B",
+          "#232624",
+          "#3F4341",
+          "#5E6260",
+          "#7F8481",
+          "#A2A6A4",
+          "#C7CAC8",
+          "#EDEFEE"
+        ]
+      },
+      "rail-2-dark": {
+        "role": "neutral",
+        "displayName": "Cabinet Rail Hover (dark theme)",
+        "canonical": "rgb(23 33 28)",
+        "tonalRamp": [
+          "#090C0B",
+          "#222624",
+          "#3D4440",
+          "#5A645F",
+          "#7A8580",
+          "#9FA7A3",
+          "#C5CBC7",
+          "#ECEFED"
+        ]
+      },
+      "rail-ink-2-dark": {
+        "role": "neutral",
+        "displayName": "Rail Ink 2 (dark theme)",
+        "canonical": "rgb(147 166 154)",
+        "tonalRamp": [
+          "#090C0A",
+          "#202723",
+          "#3A453E",
+          "#56665C",
+          "#77877D",
+          "#9CA9A0",
+          "#C2CCC6",
+          "#EBF0EC"
+        ]
+      },
+      "vermilion-dark": {
+        "role": "primary",
+        "displayName": "Vermilion Stamp (dark theme)",
+        "canonical": "rgb(238 106 79)",
+        "tonalRamp": [
+          "#1B0301",
+          "#441107",
+          "#732313",
+          "#A6361F",
+          "#CD5A42",
+          "#E48975",
+          "#F9B6A7",
+          "#FFE4DB"
+        ]
+      },
+      "cobalt-dark": {
+        "role": "secondary",
+        "displayName": "Index Cobalt (dark theme)",
+        "canonical": "rgb(127 169 230)",
+        "tonalRamp": [
+          "#050B17",
+          "#16253C",
+          "#2A4266",
+          "#406294",
+          "#6084B8",
+          "#8AA7D1",
+          "#B6CBE9",
+          "#E3F0FF"
+        ]
+      },
+      "ochre-dark": {
+        "role": "tertiary",
+        "displayName": "File Ochre (dark theme)",
+        "canonical": "rgb(227 181 74)",
+        "tonalRamp": [
+          "#120900",
+          "#332200",
+          "#583D00",
+          "#805A00",
+          "#A37C12",
+          "#BFA15F",
+          "#DCC79A",
+          "#FAEDD4"
+        ]
+      },
+      "cabinet-green-dark": {
+        "role": "tertiary",
+        "displayName": "Cabinet Green (dark theme)",
+        "canonical": "rgb(108 192 138)",
+        "tonalRamp": [
+          "#020F06",
+          "#0A2D19",
+          "#174E2E",
+          "#267246",
+          "#4B9466",
+          "#7DB48F",
+          "#AED4B9",
+          "#DFF5E5"
+        ]
+      },
+      "act-dark": {
+        "role": "primary",
+        "displayName": "Action Vermilion (dark theme)",
+        "canonical": "rgb(226 88 59)",
+        "tonalRamp": [
+          "#1B0301",
+          "#460F05",
+          "#75200D",
+          "#A93218",
+          "#D0573D",
+          "#E78771",
+          "#FCB5A5",
+          "#FFE4DA"
+        ]
+      },
+      "on-act-dark": {
+        "role": "primary",
+        "displayName": "On Action (dark theme)",
+        "canonical": "rgb(20 9 6)",
+        "tonalRamp": [
+          "#0D0A09",
+          "#2A2321",
+          "#493F3C",
+          "#6B5E59",
+          "#8D7F7A",
+          "#AEA29E",
+          "#CFC7C4",
+          "#F2EDEC"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles only, condensed (wdth 72), over a strong rule. 2.25rem mobile, 3rem from md."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section and report titles inside cards (wdth 80)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Agent names and card headings (wdth 80)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "UI and prose, tabular numerals on; measure 60-72ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase metadata: table headers, small section headings, status words, doc types. Colour ink-3."
+      },
+      "serial": {
+        "displayName": "Serial",
+        "purpose": "Courier Prime for serials, IDs, IOCs, model names, tool I/O."
+      },
+      "indicator": {
+        "displayName": "Indicator",
+        "purpose": "The IOC input on the request slip."
+      }
+    },
+    "shadows": [
+      {
+        "name": "cross-reference-lift",
+        "value": "0 6px 14px -6px rgb(0 0 0 / 0.35)",
+        "purpose": "Only on the source card matching a hovered or focused S-n chip, with translateY(-2px) and a 2px ink/60 ring."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing: file-in, tab and chip lift, ticker."
+      },
+      {
+        "name": "file-in",
+        "value": "translateY(8px) to none, 240ms ease-expo",
+        "purpose": "New cards, rows and expanded panels drop and settle."
+      },
+      {
+        "name": "tick",
+        "value": "translateY(-60%) opacity 0.2 to none, 220ms ease-expo",
+        "purpose": "Only the changed characters of an in-place metric."
+      },
+      {
+        "name": "rule-run",
+        "value": "translateX(-100%) to translateX(250%), 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite",
+        "purpose": "Ink bar along the top rule of the working agent card."
+      },
+      {
+        "name": "state",
+        "value": "150ms colours, 200ms transforms",
+        "purpose": "Hover colour changes and cross-reference lift."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all durations 0.001ms",
+        "purpose": "prefers-reduced-motion collapses every animation and transition."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Action Button",
+      "kind": "button",
+      "refersTo": "button-act",
+      "description": "The single filled vermilion submit on a view.",
+      "html": "<button class=\"ds-btn-act\">Investigate <svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-act { display:inline-flex; align-items:center; gap:8px; background:rgb(var(--act)); color:rgb(var(--onact)); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-weight:600; font-size:15px; padding:14px 28px; border:0; border-radius:0; cursor:pointer; transition:background-color 150ms; } .ds-btn-act:hover { background:rgb(var(--act) / 0.9); } .ds-btn-act:focus-visible { outline:2px solid rgb(var(--cobalt)); outline-offset:2px; } .ds-btn-act:disabled { opacity:0.45; cursor:not-allowed; }"
+    },
+    {
+      "name": "Line Button",
+      "kind": "button",
+      "refersTo": "button-line",
+      "description": "Secondary actions: exports, new conversation.",
+      "html": "<button class=\"ds-btn-line\">Export STIX 2.1</button>",
+      "css": ".ds-btn-line { display:inline-flex; align-items:center; gap:8px; background:transparent; color:rgb(var(--ink)); border:1px solid rgb(var(--rulestrong) / 0.7); border-radius:0; font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-weight:600; font-size:14px; padding:6px 12px; cursor:pointer; transition:background-color 150ms; } .ds-btn-line:hover { background:rgb(var(--card2)); } .ds-btn-line:focus-visible { outline:2px solid rgb(var(--cobalt)); outline-offset:2px; }"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Tertiary in-card actions such as Copy passage.",
+      "html": "<button class=\"ds-btn-text\">Copy passage</button>",
+      "css": ".ds-btn-text { background:none; border:0; padding:0; color:rgb(var(--ink2)); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-weight:500; font-size:12px; cursor:pointer; transition:color 150ms; } .ds-btn-text:hover { color:rgb(var(--ink)); } .ds-btn-text:focus-visible { outline:2px solid rgb(var(--cobalt)); outline-offset:2px; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text input on card stock; cobalt border on focus.",
+      "html": "<input class=\"ds-field\" placeholder=\"Knowledge base search\" />",
+      "css": ".ds-field { background:rgb(var(--card)); color:rgb(var(--ink)); border:1px solid rgb(var(--rule)); border-radius:0; font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-size:14px; padding:8px 12px; transition:border-color 150ms; } .ds-field::placeholder { color:rgb(var(--ink3)); } .ds-field:hover { border-color:rgb(var(--ink3)); } .ds-field:focus { outline:none; border-color:rgb(var(--cobalt)); }"
+    },
+    {
+      "name": "Filed Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card stock with a 3px strong top rule and a protruding signal-ink tab.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-tab\"></span><div class=\"ds-card-head\"><span class=\"ds-serial\">AG-1</span><span class=\"ds-title\">Researcher</span><span class=\"ds-label\">Filed</span></div><p class=\"ds-body\">Gathers intel from the index, NVD and the web</p></div>",
+      "css": ".ds-card { position:relative; margin-top:13px; background:rgb(var(--card)); border-top:3px solid rgb(var(--rulestrong)); padding:14px 16px 16px; color:rgb(var(--ink)); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; } .ds-tab { position:absolute; top:-13px; left:16px; width:56px; height:10px; background:rgb(var(--cobalt)); } .ds-card-head { display:flex; align-items:center; gap:10px; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid rgb(var(--rule)); } .ds-serial { font-family:'Courier Prime',ui-monospace,monospace; font-size:12px; color:rgb(var(--ink3)); } .ds-title { font-weight:800; font-size:20px; line-height:1; letter-spacing:-0.01em; font-variation-settings:'wdth' 80; } .ds-label { margin-left:auto; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:rgb(var(--green)); } .ds-body { margin:0; font-size:12px; color:rgb(var(--ink3)); }"
+    },
+    {
+      "name": "Source Card",
+      "kind": "custom",
+      "refersTo": "card-quiet",
+      "description": "A retrieved passage: quiet card, doc-type tab, S-n serial, ID, punch-hole relevance; lifts when cross-referenced.",
+      "html": "<div class=\"ds-src\" tabindex=\"0\"><span class=\"ds-src-tab\"></span><span class=\"ds-src-n\">S-2</span><span class=\"ds-src-id\">T1105</span><span class=\"ds-src-t\">MITRE ATT&amp;CK Enterprise</span><div class=\"ds-src-meta\"><span class=\"ds-src-type\">Mitre attack</span><span class=\"ds-holes\"><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i class=\"on\"></i><i></i></span><span class=\"ds-src-sim\">sim 71%</span></div></div>",
+      "css": ".ds-src { position:relative; margin-top:13px; background:rgb(var(--card)); border-top:1px solid rgb(var(--rule)); padding:12px 14px; font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-size:14px; color:rgb(var(--ink2)); transition:transform 200ms cubic-bezier(0.16,1,0.3,1), box-shadow 200ms cubic-bezier(0.16,1,0.3,1); } .ds-src:hover, .ds-src:focus-visible { outline:none; transform:translateY(-2px); box-shadow:0 6px 14px -6px rgb(0 0 0 / 0.35), 0 0 0 2px rgb(var(--ground)), 0 0 0 4px rgb(var(--ink) / 0.6); } .ds-src-tab { position:absolute; top:-11px; left:16px; width:56px; height:10px; background:rgb(var(--cobalt)); transition:top 200ms, height 200ms; } .ds-src:hover .ds-src-tab { top:-15px; height:14px; } .ds-src-n { font-family:'Courier Prime',ui-monospace,monospace; font-size:12px; font-weight:700; margin-right:12px; } .ds-src-id { font-family:'Courier Prime',ui-monospace,monospace; font-weight:700; color:rgb(var(--ink)); margin-right:8px; } .ds-src-meta { display:flex; align-items:center; gap:10px; margin:4px 0 0 36px; font-size:12px; color:rgb(var(--ink3)); } .ds-src-type { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; } .ds-holes { display:inline-flex; gap:3px; color:rgb(var(--ink2)); } .ds-holes i { width:8px; height:8px; border-radius:9999px; border:1.5px solid currentColor; opacity:0.5; box-sizing:border-box; } .ds-holes i.on { background:currentColor; opacity:1; } .ds-src-sim { font-family:'Courier Prime',ui-monospace,monospace; }"
+    },
+    {
+      "name": "Cross-Reference Chip",
+      "kind": "chip",
+      "refersTo": "chip-ref",
+      "description": "Inline S-n citation filled with its source ink; lights its source card.",
+      "html": "<p class=\"ds-prose\">Mitigate with multi-factor authentication <button class=\"ds-chip\">S-2<span>M1032</span></button>.</p>",
+      "css": ".ds-prose { font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-size:14px; color:rgb(var(--ink)); } .ds-chip { display:inline-flex; align-items:center; gap:4px; font-family:'Courier Prime',ui-monospace,monospace; font-size:0.78em; font-weight:700; line-height:1; padding:3px 6px; border:0; border-radius:2px; vertical-align:1px; background:rgb(var(--cobalt)); color:rgb(var(--card)); cursor:pointer; transition:transform 150ms cubic-bezier(0.16,1,0.3,1); } .ds-chip span { font-weight:400; opacity:0.8; } .ds-chip:hover, .ds-chip:focus-visible { outline:none; transform:translateY(-2px); box-shadow:0 0 0 1px rgb(var(--card)), 0 0 0 3px rgb(var(--ink) / 0.7); }"
+    },
+    {
+      "name": "Severity Stamp",
+      "kind": "chip",
+      "description": "A bold severity word in a report, struck as a square stamp.",
+      "html": "<span class=\"ds-stamp ds-crit\">Critical</span> <span class=\"ds-stamp ds-med\">Medium</span>",
+      "css": ".ds-stamp { display:inline-block; font-family:Archivo,ui-sans-serif,system-ui,sans-serif; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; font-size:11px; padding:1px 6px; border:2px solid; } .ds-crit { background:rgb(var(--verm)); border-color:rgb(var(--verm)); color:rgb(var(--card)); } .ds-med { border-color:rgb(var(--ochre)); color:rgb(var(--ochre)); }"
+    },
+    {
+      "name": "Cabinet Rail Nav",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Filing-cabinet rail; the active item is pulled out in ground colour.",
+      "html": "<nav class=\"ds-rail\"><div class=\"ds-mark\">THREATRAG</div><a class=\"ds-nav on\" href=\"#\">Investigate<kbd>1</kbd></a><a class=\"ds-nav\" href=\"#\">Ask<kbd>2</kbd></a><a class=\"ds-nav\" href=\"#\">Knowledge base<kbd>3</kbd></a></nav>",
+      "css": ".ds-rail { width:232px; background:rgb(var(--rail)); color:rgb(var(--railink)); font-family:Archivo,ui-sans-serif,system-ui,sans-serif; padding-bottom:12px; } .ds-mark { font-weight:800; font-size:1.85rem; line-height:1; letter-spacing:0.02em; font-variation-settings:'wdth' 72; padding:24px 20px 28px; } .ds-nav { display:flex; align-items:center; height:44px; padding:0 20px; font-size:14px; color:rgb(var(--railink) / 0.8); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-nav:hover { background:rgb(var(--rail2)); color:rgb(var(--railink)); } .ds-nav:focus-visible { outline:2px solid rgb(var(--cobalt)); outline-offset:2px; } .ds-nav.on { background:rgb(var(--ground)); color:rgb(var(--ink)); font-weight:700; } .ds-nav kbd { margin-left:auto; font-family:'Courier Prime',ui-monospace,monospace; font-size:11px; color:rgb(var(--railink2)); } .ds-nav.on kbd { color:rgb(var(--ink3)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Cross-Reference Index",
+    "overview": "ThreatRAG is drawn as a mid-century signals-intelligence card index. Everything the system produces (an answer, a retrieved passage, an agent's work, a saved report, a tool call) is a filed card with a serial: `S-1`, `AG-2`, `A-1`, `L-3`, `Q-1`, `R-7E41C0`. Citations are cross-references: an `S-n` chip in the prose and the tabbed source card it points to light each other on hover or focus. The shell is a filing-cabinet green rail; the work surface is card stock on a darker card-stock ground in light mode, and cabinet-interior charcoal green in dark.\n\nStructure comes from rules, not boxes or shadows: a 3px ink rule across the top of a card, 1px rules between rows, coloured index tabs protruding above card tops. Colour is signal ink, used on tabs, chips, stamps and state words, never as a wash. Density is that of a working tool: compact rows, mono identifiers, tabular numerals everywhere. The world refuses the near-black neon SOC console: no glow, no glass, no gradient.",
+    "keyCharacteristics": [
+      "Every artifact carries a serial in Courier Prime; one serial system across the app.",
+      "Cards are flat card stock with a heavy top rule; coloured tabs protrude above them.",
+      "Four signal inks with fixed meanings: vermilion, cobalt, ochre, cabinet green.",
+      "Archivo at condensed width (wdth 72-80) for headings, normal width for UI text.",
+      "Magnitude shown as a five-hole punch row, not a bar or a percentage alone.",
+      "Square corners everywhere except the 2px cross-reference chip and the round punch holes."
+    ],
+    "rules": [
+      {
+        "name": "The Fixed Ink Rule",
+        "body": "Each signal ink means one thing everywhere: vermilion is critical and the Critic, cobalt is the Researcher and ATT&CK, ochre is the Reporter and OWASP, green is success. Never use a signal ink decoratively or reassign it.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Action Rule",
+        "body": "Only the primary submit on a page is filled vermilion. Everything else is a line or text button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Typewriter Rule",
+        "body": "Courier Prime sets only machine identity: serials, IDs, IOCs, hashes, model names, tool I/O, keyboard hints. Never prose, never buttons, never headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Condensed Heading Rule",
+        "body": "Headings use Archivo condensed (wdth 72 for display, 80 for headline/title) at 800; never set a heading in a different family.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Card Rule",
+        "body": "Cards are flat at rest. Lift appears only as the answer to a cross-reference, never as decoration or hover polish.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do give every new artifact a mono serial in the existing system (`S-n`, `AG-n`, `A-n`, `L-n`, `Q-n`, `R-XXXXXX`).",
+      "Do build structure from rules: a 3px strong top rule on filed cards, 1px rules between rows and panes.",
+      "Do mark a card's type with a protruding 56 x 10px index tab in its signal ink.",
+      "Do show relevance or counts with the five-hole punch row, paired with the exact number.",
+      "Do define every colour as an RGB-channel custom property with light and dark values, and reference it through the Tailwind token.",
+      "Do keep text at ink-3 or darker on card stock in both themes."
+    ],
+    "donts": [
+      "Don't use glow, glassmorphism, gradients or neon-on-black panels; this is not a SOC console.",
+      "Don't round cards, buttons or fields; only the cross-reference chip (2px) and holes are curved.",
+      "Don't add resting shadows; the cross-reference lift is the only shadow.",
+      "Don't fill a second button with vermilion on the same view.",
+      "Don't set prose, buttons or headings in Courier Prime, or IDs and IOCs in Archivo.",
+      "Don't redact or escape indicators of compromise in display; only credential formats are redacted."
+    ]
+  }
+}

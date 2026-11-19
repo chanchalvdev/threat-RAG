@@ -23,3 +23,7 @@ threatrag/backend/data/
 # OS
 .DS_Store
 .coverage
+
+# Design tooling: review screenshots and caches are regenerated
+.impeccable/review/
+.impeccable/hook.cache.json

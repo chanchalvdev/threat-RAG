@@ -16,7 +16,6 @@ FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/install/bin:$PATH" \
     PYTHONPATH="/app"
 
 WORKDIR /app
@@ -24,7 +23,8 @@ WORKDIR /app
 # Non-root user
 RUN addgroup --system app && adduser --system --ingroup app app
 
-COPY --from=builder /install /install
+# --prefix installs land in /usr/local, where the runtime interpreter looks for them
+COPY --from=builder /install /usr/local
 COPY app/ ./app/
 
 RUN chown -R app:app /app

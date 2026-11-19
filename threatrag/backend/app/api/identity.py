@@ -37,15 +37,22 @@ async def current_identity(authorization: str | None = Header(default=None)) -> 
 
 
 async def rate_limit(request: Request, identity: Identity = Depends(current_identity)) -> None:
-    """Fixed one-minute window per identity, or per client address when anonymous."""
+    """Sliding one-minute window per identity, or per client address when anonymous.
+
+    The previous minute's count is weighted by how much of it still overlaps the last 60 s, so a
+    burst straddling a minute boundary cannot reach twice the limit (as a fixed window allows).
+    """
     limit = get_settings().rate_limit_per_minute
     if limit <= 0:
         return
     who = identity.sub if identity.authenticated else f"ip:{request.client.host if request.client else 'unknown'}"
-    window = int(time.time() // _WINDOW_S)
-    count = await get_state().incr(f"rl:{who}:{window}", ttl_s=_WINDOW_S * 2)
-    if count > limit:
-        retry = _WINDOW_S - int(time.time() % _WINDOW_S)
+    now = time.time()
+    window, elapsed = divmod(now, _WINDOW_S)
+    state = get_state()
+    current = await state.incr(f"rl:{who}:{int(window)}", ttl_s=_WINDOW_S * 2)
+    previous = int(await state.get(f"rl:{who}:{int(window) - 1}") or 0)
+    if current + previous * (1 - elapsed / _WINDOW_S) > limit:
+        retry = max(1, int(_WINDOW_S - elapsed))
         raise HTTPException(status_code=429, detail="Rate limit exceeded", headers={"Retry-After": str(retry)})
 
 

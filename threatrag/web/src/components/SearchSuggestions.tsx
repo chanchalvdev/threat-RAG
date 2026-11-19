@@ -1,32 +1,38 @@
-import { Crosshair, Bug, ShieldAlert, Network, GitCompare, Boxes } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 const SUGGESTIONS = [
-  { text: 'Explain T1055 Process Injection',            Icon: Crosshair },
-  { text: 'What CVEs affect Apache Log4j?',             Icon: Bug },
-  { text: 'OWASP LLM01: Prompt Injection explained',    Icon: ShieldAlert },
-  { text: 'How does ransomware spread laterally?',      Icon: Network },
-  { text: 'Compare T1078 and T1133',                    Icon: GitCompare },
-  { text: 'Latest supply chain attack techniques',      Icon: Boxes },
+  { ref: 'T1055',      kind: 'ATT&CK',   text: 'Explain T1055 Process Injection' },
+  { ref: 'CVE',        kind: 'NVD',      text: 'What CVEs affect Apache Log4j?' },
+  { ref: 'LLM01',      kind: 'OWASP',    text: 'OWASP LLM01: Prompt Injection explained' },
+  { ref: 'TA0008',     kind: 'ATT&CK',   text: 'How does ransomware spread laterally?' },
+  { ref: 'T1078·T1133', kind: 'ATT&CK',  text: 'Compare T1078 and T1133' },
+  { ref: 'T1195',      kind: 'ATT&CK',   text: 'Latest supply chain attack techniques' },
 ]
 
 interface Props {
   onSelect: (text: string) => void
 }
 
+/** A drawer of starter questions, filed by the reference each one leans on. */
 export default function SearchSuggestions({ onSelect }: Props) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto mt-8">
-      {SUGGESTIONS.map(({ text, Icon }) => (
-        <button key={text} onClick={() => onSelect(text)}
-          className="group flex items-center gap-3 text-left text-sm card px-4 py-3
-                     hover:border-accent-dim/50 hover:bg-surface-700 transition-all">
-          <span className="w-8 h-8 rounded-lg bg-surface-700 border border-line flex items-center justify-center shrink-0
-                           text-slate-400 group-hover:text-accent group-hover:border-accent-dim/40 transition-colors">
-            <Icon size={15} />
-          </span>
-          <span className="text-slate-300 group-hover:text-slate-100 transition-colors">{text}</span>
-        </button>
+    <div className="card mt-[13px]">
+    <span aria-hidden className="tab bg-ochre-fill" />
+    <ul className="divide-y divide-rule" aria-label="Example questions">
+      {SUGGESTIONS.map(({ ref, kind, text }) => (
+        <li key={text}>
+          <button type="button" onClick={() => onSelect(text)}
+            className="group w-full grid grid-cols-[7.5rem_1fr_auto] items-center gap-4 px-5 py-3.5 text-left hover:bg-card-2 transition-colors">
+            <span className="leading-tight">
+              <span className="block font-mono text-sm font-bold text-ink">{ref}</span>
+              <span className="label">{kind}</span>
+            </span>
+            <span className="text-[15px] text-ink-2 group-hover:text-ink transition-colors">{text}</span>
+            <ArrowRight size={16} strokeWidth={1.75} className="text-ink-3 group-hover:text-act group-hover:translate-x-0.5 transition-[transform,color] duration-200" />
+          </button>
+        </li>
       ))}
+    </ul>
     </div>
   )
 }
