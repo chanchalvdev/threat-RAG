@@ -10,6 +10,8 @@ export interface NodeState {
   detail: string
 }
 
+export interface TrailEntry { node: NodeId; name: string; input: string }
+
 type InvestigationEvent =
   | { type: 'node_start'; node: NodeId; iteration: number }
   | { type: 'node_done'; node: NodeId; summary: string }
@@ -29,6 +31,8 @@ const IDLE: Record<NodeId, NodeState> = {
 export function useInvestigation() {
   const [nodes, setNodes] = useState(IDLE)
   const [iteration, setIteration] = useState(0)
+  const [trail, setTrail] = useState<TrailEntry[]>([])
+  const [sendBacks, setSendBacks] = useState<string[]>([])
   const [reportChunks, setReportChunks] = useState<string[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,9 +48,15 @@ export function useInvestigation() {
         if (evt.node === 'researcher') setIteration(evt.iteration)
         break
       case 'node_done': patch(evt.node, { status: 'done', detail: evt.summary }); break
-      case 'tool_call': patch('researcher', { detail: `→ ${evt.name} ${evt.input}` }); break
+      case 'tool_call':
+        patch('researcher', { detail: `→ ${evt.name} ${evt.input}` })
+        setTrail(prev => [...prev, { node: evt.node, name: evt.name, input: evt.input }])
+        break
       case 'routing':
-        if (evt.to === 'researcher') patch('critic', { status: 'idle', detail: `Sent back: ${evt.reason}` })
+        if (evt.to === 'researcher') {
+          patch('critic', { status: 'idle', detail: `Sent back: ${evt.reason}` })
+          setSendBacks(prev => [...prev, evt.reason])
+        }
         break
       case 'report_chunk': setReportChunks(prev => [...prev, evt.data]); break
       case 'done': setResult(evt); break
@@ -55,7 +65,7 @@ export function useInvestigation() {
   }
 
   const start = async (ioc: string, iocType: IOCType) => {
-    setRunning(true); setError(null); setReportChunks([]); setResult(null); setNodes(IDLE); setIteration(0)
+    setRunning(true); setError(null); setReportChunks([]); setResult(null); setNodes(IDLE); setIteration(0); setTrail([]); setSendBacks([])
     try {
       const res = await fetch('/api/v1/investigate/stream', {
         method: 'POST',
@@ -88,5 +98,5 @@ export function useInvestigation() {
     }
   }
 
-  return { nodes, iteration, reportChunks, running, error, result, start }
+  return { nodes, iteration, trail, sendBacks, reportChunks, running, error, result, start }
 }

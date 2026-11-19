@@ -1,56 +1,41 @@
 /** @type {import('tailwindcss').Config} */
+const token = name => `rgb(var(--${name}) / <alpha-value>)`
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        sans: ['Archivo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"Courier Prime"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        surface: {
-          950: '#060A13', // app background
-          900: '#0B1220', // sidebar / header / panels
-          800: '#111A2C', // cards
-          700: '#18233B', // raised / hover
-          600: '#22304F', // strong borders / tracks
-        },
-        line: {
-          DEFAULT: '#1D2A45', // card borders
-          soft: '#141E33',    // subtle dividers
-        },
-        accent: {
-          DEFAULT: '#22D3EE',
-          bright: '#67E8F9',
-          dim: '#0E7490',
-          faint: '#164E63',
-        },
-        severity: {
-          critical: '#ef4444',
-          high:     '#f97316',
-          medium:   '#eab308',
-          low:      '#22c55e',
-          info:     '#3b82f6',
-        },
+        ground: token('ground'),
+        card: { DEFAULT: token('card'), 2: token('card2') },
+        ink: { DEFAULT: token('ink'), 2: token('ink2'), 3: token('ink3') },
+        rule: { DEFAULT: token('rule'), strong: token('rulestrong') },
+        rail: { DEFAULT: token('rail'), 2: token('rail2'), ink: token('railink'), ink2: token('railink2') },
+        verm: token('verm'),
+        cobalt: token('cobalt'),
+        ochre: { DEFAULT: token('ochre'), fill: token('ochrefill') },
+        green: token('green'),
+        act: { DEFAULT: token('act'), on: token('onact') },
       },
-      boxShadow: {
-        glow: '0 0 24px rgba(34, 211, 238, 0.10)',
-        card: '0 1px 3px rgba(0, 0, 0, 0.4)',
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+      },
+      transitionTimingFunction: {
+        expo: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
-        'slide-in': {
-          from: { opacity: '0', transform: 'translateY(6px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
-        },
-        'fade-in': {
-          from: { opacity: '0' },
-          to:   { opacity: '1' },
-        },
+        'file-in': { from: { transform: 'translateY(8px)' }, to: { transform: 'none' } },
+        'rule-run': { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(250%)' } },
+        'tick': { from: { transform: 'translateY(-60%)', opacity: '0.2' }, to: { transform: 'none', opacity: '1' } },
       },
       animation: {
-        'slide-in': 'slide-in 0.25s ease-out',
-        'fade-in': 'fade-in 0.3s ease-out',
+        'file-in': 'file-in 240ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'rule-run': 'rule-run 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite',
+        'tick': 'tick 220ms cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

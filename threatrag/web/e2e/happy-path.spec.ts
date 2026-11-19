@@ -13,6 +13,9 @@ async function mockApi(page: Page) {
     counters: { guard_blocked: 2, guard_allowed: 9, rag_abstained: 1 },
   } }))
   await page.route('**/api/v1/evaluate/history**', route => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/ingest/stats', route => route.fulfill({ json: {
+    collection: 'threat_intel_v2', total_vectors: 3506, doc_type_counts: { mitre_attack: 3379, owasp_llm: 127 },
+  } }))
 }
 
 test('analyst asks a question and gets a streamed, cited answer with a tool timeline', async ({ page }) => {

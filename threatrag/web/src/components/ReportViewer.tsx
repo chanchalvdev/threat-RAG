@@ -1,31 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Copy, Check, FileDown } from 'lucide-react'
+import { useState } from 'react'
+import { Copy, Check, Printer, Download } from 'lucide-react'
 import { cn } from '../lib/cn'
-
-interface RagasScores {
-  faithfulness: number
-  answer_relevancy: number
-  context_precision: number
-  context_recall: number | null
-  overall: number
-}
+import { CitedMarkdown, XrefProvider } from '../lib/xref'
+import { downloadStix, type SourceDoc } from '../lib/api'
+import SourceCard from './SourceCard'
 
 interface Props {
   reportChunks: string[]
   isStreaming: boolean
-  ragasScores?: RagasScores
+  sources: SourceDoc[]
+  reportId?: string | null
+  iterations?: number
+  ioc?: string
 }
 
-export default function ReportViewer({ reportChunks, isStreaming, ragasScores }: Props) {
-  const content = reportChunks.join('')
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const [copied, setCopied] = useState(false)
+export const reportSerial = (id: string) => 'R-' + id.replace(/-/g, '').slice(0, 6).toUpperCase()
 
-  useEffect(() => {
-    if (isStreaming) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [reportChunks, isStreaming])
+/** The assessment card and its source tray; citations in the text light the cards in the tray. */
+export default function ReportViewer({ reportChunks, isStreaming, sources, reportId, iterations, ioc }: Props) {
+  const content = reportChunks.join('')
+  // The Reporter opens with "# Threat Intelligence Report: <ioc>"; lift that line into the card's headline.
+  const h1 = content.match(/^\s*#\s+(.+)\n/)
+  const headline = h1 ? h1[1].trim() : ioc
+  const body = h1 ? content.slice(h1[0].length) : content
+  const [copied, setCopied] = useState(false)
+  const [stixError, setStixError] = useState(false)
+  const done = !isStreaming
 
   const copyMd = () => {
     navigator.clipboard.writeText(content)
@@ -34,56 +34,59 @@ export default function ReportViewer({ reportChunks, isStreaming, ragasScores }:
   }
 
   return (
-    <div className="relative">
-      {/* Action bar */}
-      <div className="flex items-center justify-between pb-3 mb-4 border-b border-line">
-        <p className="text-xs text-slate-500 uppercase tracking-wider">
-          Investigation report {isStreaming && <span className="text-accent normal-case tracking-normal">· streaming…</span>}
-        </p>
-        <div className="flex gap-2">
-          <button onClick={copyMd} className="btn-secondary flex items-center gap-1.5 text-xs px-2.5 py-1.5">
-            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            {copied ? 'Copied' : 'Copy Markdown'}
-          </button>
-          <button onClick={() => window.print()} className="btn-secondary flex items-center gap-1.5 text-xs px-2.5 py-1.5">
-            <FileDown size={12} /> Export PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Markdown report */}
-      <div className={cn(
-        'prose prose-invert prose-sm max-w-none prose-headings:text-slate-100 prose-p:leading-relaxed',
-        'prose-pre:bg-surface-950 prose-pre:border prose-pre:border-line prose-a:text-accent',
-        isStreaming && 'blink-cursor')}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-      </div>
-      <div ref={bottomRef} />
-
-      {/* RAGAs scores */}
-      {ragasScores && !isStreaming && (
-        <div className="mt-6 p-4 bg-surface-900 border border-line rounded-xl">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Response quality (RAGAs)</p>
-          {[
-            { label: 'Faithfulness', value: ragasScores.faithfulness },
-            { label: 'Relevancy', value: ragasScores.answer_relevancy },
-            { label: 'Context Precision', value: ragasScores.context_precision },
-            ...(ragasScores.context_recall !== null
-              ? [{ label: 'Context Recall', value: ragasScores.context_recall }]
-              : []),
-          ].map(({ label, value }) => (
-            <div key={label} className="flex items-center gap-3 mb-2">
-              <span className="text-xs text-slate-400 w-36">{label}</span>
-              <div className="flex-1 h-2 bg-surface-600 rounded-full overflow-hidden">
-                <div className={cn('h-full rounded-full',
-                  value >= 0.8 ? 'bg-emerald-400' : value >= 0.5 ? 'bg-yellow-400' : 'bg-red-500')}
-                  style={{ width: `${value * 100}%` }} />
-              </div>
-              <span className="text-xs text-slate-200 font-mono w-10 text-right">{(value * 100).toFixed(0)}%</span>
+    <XrefProvider>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-start">
+        <article className="card mt-[13px] px-5 md:px-8 py-6">
+          <span aria-hidden className="tab bg-ochre-fill" />
+          <div className="flex flex-wrap items-center gap-3 pb-3 mb-5 border-b border-rule">
+            <span className="font-mono text-xs font-bold text-ink-2">{reportId ? reportSerial(reportId) : 'R-draft'}</span>
+            <div className="no-print flex flex-wrap gap-2 ml-auto">
+              <button type="button" onClick={copyMd} disabled={!content} className="btn-line text-xs">
+                {copied ? <Check size={13} className="text-green" /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy Markdown'}
+              </button>
+              <button type="button" onClick={() => window.print()} disabled={!done} className="btn-line text-xs">
+                <Printer size={13} /> Export PDF
+              </button>
+              {reportId && (
+                <button type="button" className="btn-line text-xs"
+                  onClick={() => { setStixError(false); downloadStix(reportId).catch(() => setStixError(true)) }}>
+                  <Download size={13} /> Export STIX 2.1
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+          </div>
+          {headline && (
+            <div className="mb-6">
+              <h2 className="display text-2xl md:text-3xl [font-variation-settings:'wdth'_80] text-ink">{headline}</h2>
+              <p className="text-sm text-ink-2 mt-1.5">
+                {isStreaming ? <span className="text-ochre font-semibold">The Reporter is writing</span> : 'Assessment filed'}
+                {iterations ? ` · ${iterations} research pass${iterations > 1 ? 'es' : ''}` : ''}
+                {done ? ` · ${sources.length} cross-reference${sources.length === 1 ? '' : 's'}` : ''}
+              </p>
+            </div>
+          )}
+          {stixError && <p role="alert" className="text-xs text-verm mb-3">STIX export failed. The report may not have been saved; try again in a moment.</p>}
+          <CitedMarkdown content={body} sources={sources} className={cn('prose-base max-w-[72ch]', isStreaming && '[&>*:last-child]:typing')} />
+          {done && (
+            <p className="mt-6 pt-3 border-t border-rule text-xs text-ink-3">
+              {reportId ? `Saved as ${reportSerial(reportId)}` : 'Not saved: report storage is unavailable'}
+            </p>
+          )}
+        </article>
+
+        <aside aria-label="Cross-references" className="xl:sticky xl:top-6">
+          <h2 className="label mb-1">Cross-references{sources.length ? ` · ${sources.length}` : ''}</h2>
+          {sources.length === 0 ? (
+            <p className="text-sm text-ink-3 border-t border-rule pt-3 mt-2">
+              {isStreaming ? 'Source cards are filed when the report is complete.' : 'No knowledge base passages were cited.'}
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {sources.map((s, i) => <SourceCard key={i} source={s} index={i + 1} />)}
+            </div>
+          )}
+        </aside>
+      </div>
+    </XrefProvider>
   )
 }

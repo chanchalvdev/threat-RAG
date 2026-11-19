@@ -9,11 +9,12 @@ export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="/" element={<Navigate to="/investigate" replace />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/investigate" element={<Investigate />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="*" element={<Navigate to="/investigate" replace />} />
       </Routes>
     </Layout>
   )

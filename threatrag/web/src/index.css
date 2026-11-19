@@ -2,56 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-surface-600 rounded-full border-2 border-transparent bg-clip-padding; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
-
-  ::selection { @apply bg-accent-faint text-accent-bright; }
-
-  button, a, input, textarea, select {
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-0;
+/* Cross-Reference Index tokens: RGB channels so Tailwind can apply alpha. */
+:root, :root[data-theme='light'] {
+  color-scheme: light;
+  --ground: 227 219 199; --card: 247 242 229; --card2: 237 230 212;
+  --ink: 24 25 26; --ink2: 70 66 55; --ink3: 95 88 74;
+  --rule: 205 194 169; --rulestrong: 24 25 26;
+  --rail: 29 42 38; --rail2: 42 58 51; --railink: 220 227 218; --railink2: 157 176 164;
+  --verm: 184 50 27; --cobalt: 37 94 158; --ochre: 138 95 0; --ochrefill: 217 162 27; --green: 45 122 76;
+  --act: 184 50 27; --onact: 255 255 255;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --ground: 15 20 17; --card: 24 32 27; --card2: 32 42 36;
+    --ink: 236 230 214; --ink2: 195 188 170; --ink3: 156 149 132;
+    --rule: 46 58 51; --rulestrong: 174 184 170;
+    --rail: 9 13 11; --rail2: 23 33 28; --railink: 220 227 218; --railink2: 147 166 154;
+    --verm: 238 106 79; --cobalt: 127 169 230; --ochre: 227 181 74; --ochrefill: 217 162 27; --green: 108 192 138;
+    --act: 226 88 59; --onact: 20 9 6;
   }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ground: 15 20 17; --card: 24 32 27; --card2: 32 42 36;
+  --ink: 236 230 214; --ink2: 195 188 170; --ink3: 156 149 132;
+  --rule: 46 58 51; --rulestrong: 174 184 170;
+  --rail: 9 13 11; --rail2: 23 33 28; --railink: 220 227 218; --railink2: 147 166 154;
+  --verm: 238 106 79; --cobalt: 127 169 230; --ochre: 227 181 74; --ochrefill: 217 162 27; --green: 108 192 138;
+  --act: 226 88 59; --onact: 20 9 6;
+}
+
+@layer base {
+  html { font-variation-settings: 'wdth' 100; }
+  body { @apply bg-ground text-ink font-sans antialiased; font-feature-settings: 'tnum' 1; }
+  ::selection { background: rgb(var(--ochrefill) / 0.45); color: rgb(var(--ink)); }
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--rule)) transparent; caret-color: rgb(var(--act)); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--rule)); border: 3px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  :focus-visible { outline: 2px solid rgb(var(--cobalt)); outline-offset: 2px; }
+  a { text-underline-offset: 3px; }
+  ::placeholder { color: rgb(var(--ink3)); opacity: 1; }
 }
 
 @layer components {
-  .card {
-    @apply bg-surface-800 border border-line rounded-xl shadow-card;
-  }
-  .btn-primary {
-    @apply bg-accent hover:bg-accent-bright disabled:opacity-40 disabled:hover:bg-accent
-           text-surface-950 font-semibold rounded-lg transition-colors;
-  }
-  .btn-secondary {
-    @apply bg-surface-700 hover:bg-surface-600 border border-line
-           text-slate-200 font-medium rounded-lg transition-colors;
-  }
-  .input-base {
-    @apply bg-surface-800 border border-line rounded-lg text-sm text-slate-100
-           placeholder-slate-500 focus:border-accent-dim transition-colors;
-  }
+  /* A filed card: card stock with a heavy top rule. Tabs sit above it. */
+  .card { @apply bg-card border-t-[3px] border-rule-strong relative; }
+  .card-quiet { @apply bg-card border-t border-rule relative; }
+  .tab { @apply absolute -top-[13px] left-4 h-[10px] w-14; }
+  .label { @apply text-2xs font-bold uppercase tracking-[0.12em] text-ink-3; }
+  .display { font-variation-settings: 'wdth' 72; @apply font-extrabold tracking-[-0.01em] leading-none; }
+  .serial { @apply font-mono text-xs text-ink-3; }
+  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold text-sm transition-colors duration-150
+         disabled:cursor-not-allowed disabled:opacity-45; }
+  .btn-act { @apply btn bg-act text-act-on hover:bg-act/90 px-5 py-2.5; }
+  .btn-line { @apply btn border border-rule-strong/70 text-ink hover:bg-card-2 px-3 py-1.5; }
+  .btn-text { @apply btn text-ink-2 hover:text-ink font-medium; }
+  .field { @apply bg-card border border-rule text-ink text-sm transition-colors duration-150
+           hover:border-ink-3 focus:border-cobalt focus:outline-none focus-visible:outline-none; }
+  .chip-ref { @apply inline-flex items-center gap-1 font-mono text-[0.78em] font-bold leading-none px-1.5 py-[3px]
+              rounded-[2px] align-[1px] transition-transform duration-150 ease-expo cursor-pointer no-underline; }
 }
 
 @layer utilities {
-  .blink-cursor::after {
-    content: '▋';
-    @apply text-accent;
-    animation: blink 1s step-end infinite;
-  }
-  @keyframes blink {
-    50% { opacity: 0; }
-  }
+  .wdth-cond { font-variation-settings: 'wdth' 72; }
+  .wdth-semi { font-variation-settings: 'wdth' 85; }
+  .typing::after { content: ''; display: inline-block; width: 0.55em; height: 1.05em; margin-left: 2px;
+    vertical-align: -0.15em; background: rgb(var(--act)); animation: caret 1s steps(1) infinite; }
+  @keyframes caret { 50% { opacity: 0; } }
+}
 
-  /* Three-dot "thinking" indicator */
-  .thinking-dot {
-    @apply inline-block w-1.5 h-1.5 rounded-full bg-accent;
-    animation: pulse-dot 1.2s ease-in-out infinite;
-  }
-  .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
-  .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes pulse-dot {
-    0%, 60%, 100% { opacity: 0.25; transform: scale(0.8); }
-    30% { opacity: 1; transform: scale(1); }
-  }
+@media print {
+  nav, header, .no-print { display: none !important; }
+  body { background: white; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
