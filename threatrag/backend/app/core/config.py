@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     abuseipdb_api_key: str = ""
     otx_api_key: str = ""
     abusech_auth_key: str = ""  # shared by MalwareBazaar, URLhaus and ThreatFox
+    nvd_api_key: str = ""       # raises NVD's limit from 5 to 50 requests per 30 s
+
+    # Feeds (Phase 11): a TAXII 2.1 collection URL (.../collections/<id>/); auth optional
+    taxii_url: str = ""
+    taxii_user: str = ""
+    taxii_password: str = ""
 
 
 @lru_cache

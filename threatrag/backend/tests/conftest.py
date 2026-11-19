@@ -15,6 +15,7 @@ def mock_store() -> QdrantStore:
     store.dense_scores = AsyncMock(return_value={})
     store.assert_embedding = AsyncMock()
     store.ensure_collection = AsyncMock()
+    store.prune = AsyncMock(return_value=0)
     return store
 
 

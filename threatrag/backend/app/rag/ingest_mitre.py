@@ -7,7 +7,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.rag.embedder import BaseEmbedder
-from app.rag.ingestion import Chunk, index_chunks, splitter
+from app.rag.ingestion import Chunk, index_chunks, point_id, splitter
 from app.rag.mitre_parser import Technique, parse_techniques
 from app.rag.store import QdrantStore
 
@@ -70,5 +70,8 @@ async def ingest_mitre_attack(path: str, store: QdrantStore, embedder: BaseEmbed
     techniques = parse_techniques(json.loads(source.read_text()))
     chunks = [chunk for t in techniques for chunk in technique_chunks(t)]
     count = await index_chunks(chunks, store, embedder)
-    log.info("mitre_ingested", techniques=len(techniques), chunks=count)
+    # Upsert first, then drop what this release no longer has (revoked or deprecated techniques,
+    # removed sections), so the index never empties while a refresh is running.
+    removed = await store.prune("mitre_attack", {point_id(c.key) for c in chunks})
+    log.info("mitre_ingested", techniques=len(techniques), chunks=count, removed=removed)
     return count

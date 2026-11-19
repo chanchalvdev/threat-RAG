@@ -1,4 +1,5 @@
 """External threat-intel tools: parsing, input safety, and honest reporting of gaps."""
+import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -10,6 +11,8 @@ os.environ.setdefault("KIMCHI_API_KEY", "test-key-for-unit-tests")
 from app.agent import intel_sources as src  # noqa: E402
 from app.agent import intel_tools as tools  # noqa: E402
 from app.agent.tools import build_tools  # noqa: E402
+from app.core.state import get_state  # noqa: E402
+from app.feeds import kev as kev_feed  # noqa: E402
 
 SHA256 = "a" * 64
 
@@ -87,23 +90,21 @@ async def test_domain_lookup_parses_urlhaus(httpx_mock):
 
 
 async def test_cve_tool_reports_kev_and_epss(httpx_mock):
-    src._kev_cache.update(items={}, expires=0.0)
-    httpx_mock.add_response(url=src.KEV_URL, json={"vulnerabilities": [
+    httpx_mock.add_response(url=kev_feed.KEV_URL, json={"vulnerabilities": [
         {"cveID": "CVE-2021-44228", "vulnerabilityName": "Log4j RCE", "dateAdded": "2021-12-10",
          "knownRansomwareCampaignUse": "Known"}]})
     httpx_mock.add_response(url="https://api.first.org/data/v1/epss?cve=CVE-2021-44228",
                             json={"data": [{"epss": "0.97", "percentile": "0.999"}]})
     out = await tools.CVEExploitationTool()._arun("cve-2021-44228")
-    src._kev_cache.update(items={}, expires=0.0)
     assert "ACTIVELY EXPLOITED" in out and "97.0% chance" in out and "ransomware use Known" in out
 
 
-async def test_kev_feed_is_cached():
-    src._kev_cache.update(items={"CVE-1": {"vulnerabilityName": "x"}}, expires=9e12)
-    with patch.object(src, "_json", new=AsyncMock()) as fetch:
+async def test_kev_feed_is_shared_state_not_refetched():
+    """One KEV copy in shared state for every worker, not a per-process dict."""
+    await get_state().set(kev_feed.KEY, json.dumps({"CVE-1": {"vulnerabilityName": "x"}}))
+    with patch.object(kev_feed, "refresh", new=AsyncMock()) as fetch:
         assert await src.kev("CVE-2") is None
         assert await src.kev("CVE-1")
-    src._kev_cache.update(items={}, expires=0.0)
     fetch.assert_not_awaited()
 
 

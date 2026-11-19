@@ -20,7 +20,7 @@ from app.evaluation.retrieval_metrics import Retrieved
 from app.models.schemas import QueryRequest
 
 
-async def _retrieve(question: str, k: int) -> list[Retrieved]:
+async def retrieve(question: str, k: int) -> list[Retrieved]:
     found = await get_retriever().retrieve(question, k=k)
     return [
         Retrieved(technique_id=h.payload.get("technique_id", ""), doc_type=h.payload.get("doc_type", ""),
@@ -58,7 +58,7 @@ async def main(args: argparse.Namespace) -> None:
         "label": args.label, "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "collection": s.qdrant_collection, "embedding": f"{s.embedding_provider}:{s.embedding_model}",
         "retrieval_mode": s.retrieval_mode, "exact_match": s.exact_match, "reranker": s.reranker,
-        "retrieval": await evaluate_retrieval(items, _retrieve, args.k),
+        "retrieval": await evaluate_retrieval(items, retrieve, args.k),
     }
     print(f"## Retrieval — {args.label}\n\n{retrieval_table(result['retrieval'])}\n")
     if args.answers:

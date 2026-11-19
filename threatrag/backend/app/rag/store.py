@@ -20,6 +20,10 @@ class LegacyCollectionError(RuntimeError):
     """The collection predates hybrid search (single unnamed vector) and must be re-ingested."""
 
 
+def _type_filter(doc_type: str) -> qm.Filter:
+    return qm.Filter(must=[qm.FieldCondition(key="doc_type", match=qm.MatchValue(value=doc_type))])
+
+
 def _doc_filter(doc_types: list[str] | None) -> qm.Filter | None:
     if not doc_types:
         return None
@@ -67,8 +71,19 @@ class QdrantStore:
             )
 
     async def delete_doc_type(self, doc_type: str) -> None:
-        flt = qm.Filter(must=[qm.FieldCondition(key="doc_type", match=qm.MatchValue(value=doc_type))])
-        await self._client.delete(collection_name=self.collection, points_selector=qm.FilterSelector(filter=flt))
+        await self._client.delete(collection_name=self.collection, points_selector=qm.FilterSelector(filter=_type_filter(doc_type)))
+
+    async def prune(self, doc_type: str, keep: set[str]) -> int:
+        """Delete `doc_type` points whose ID is not in `keep`: items the source no longer publishes."""
+        stale: list[Any] = []
+        offset, first = None, True
+        while first or offset is not None:
+            points, offset = await self._client.scroll(collection_name=self.collection, scroll_filter=_type_filter(doc_type),
+                                                       limit=1000, with_payload=False, offset=offset)
+            stale, first = stale + [p.id for p in points if str(p.id) not in keep], False
+        if stale:
+            await self._client.delete(collection_name=self.collection, points_selector=qm.PointIdsList(points=stale))
+        return len(stale)
 
     async def upsert(self, points: list[PointStruct]) -> None:
         await self._client.upsert(collection_name=self.collection, points=points)
@@ -114,8 +129,7 @@ class QdrantStore:
     async def technique_names(self) -> dict[str, str]:
         """Map of MITRE technique ID -> canonical name from the ingested corpus."""
         names: dict[str, str] = {}
-        flt = qm.Filter(must=[qm.FieldCondition(key="doc_type", match=qm.MatchValue(value="mitre_attack"))])
-        offset = None
+        flt, offset = _type_filter("mitre_attack"), None
         while True:
             points, offset = await self._client.scroll(
                 collection_name=self.collection, scroll_filter=flt, limit=500,
@@ -129,8 +143,7 @@ class QdrantStore:
                 return names
 
     async def total(self) -> int:
-        info = await self._client.get_collection(self.collection)
-        return info.points_count or 0
+        return (await self._client.get_collection(self.collection)).points_count or 0
 
     async def count_by_doc_type(self) -> dict[str, int]:
         result = await self._client.facet(collection_name=self.collection, key="doc_type", limit=50, exact=True)

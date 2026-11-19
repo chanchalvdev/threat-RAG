@@ -74,6 +74,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Daily ATT&CK / KEV / TAXII refresh with the backend image. Opt in:
+  #   docker compose --profile feeds up -d scheduler
+  scheduler:
+    profiles: ["feeds"]
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.scripts.refresh_feeds", "--every", "24h"]
+    env_file:
+      - ../backend/.env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: ${STACK_OLLAMA_URL:-http://ollama:11434}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://threatrag:threatrag@postgres:5432/threatrag
+    volumes:
+      - mitre_cache:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   frontend:
     build:
       context: ../web
@@ -85,6 +108,7 @@ services:
         condition: service_healthy
 
 volumes:
+  mitre_cache:
   qdrant_storage:
   pg_data:
   ollama_data:

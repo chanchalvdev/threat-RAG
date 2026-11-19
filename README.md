@@ -180,18 +180,24 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
   gaps the analyst wants covered; the new report links to its parent. Down-voted questions export
   as golden-set drafts (`GET /api/v1/feedback/candidates`) for a person to check, never added
   to the eval automatically.
+- **The index keeps itself current, and checks itself.** `python -m app.scripts.refresh_feeds`
+  (the compose `scheduler` service, `--profile feeds`) re-indexes ATT&CK only when its ETag
+  changes, prunes techniques a release dropped without emptying the index, keeps one CISA KEV copy
+  in shared state, pulls a TAXII 2.1 collection from a cursor, and re-runs the retrieval eval after
+  every ATT&CK change: a hit@6 drop over 0.03 is flagged and exits non-zero. Status:
+  `GET /api/v1/ingest/feeds` and the Knowledge Base page.
 - **Small files.** Every source file is ≤ 150 lines with one responsibility.
 
 ## Quality gates
 
 ```bash
 cd threatrag/backend
-ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 268 tests
+ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 281 tests
 pytest tests/integration -m integration      # 11 tests on real Qdrant, Redis and Postgres
 python -m app.scripts.run_guard_eval         # injection suite
 cd ../web
 npm run lint && npm run typecheck && npm test && npm run build   # 7 component/client tests
-npm run e2e                                  # 6 Playwright tests, API mocked in the browser
+npm run e2e                                  # 8 Playwright tests, API mocked in the browser
 # Full stack, nothing mocked (WEB_PORT if 3000 is taken; STACK_LLM=1 adds a live model test)
 docker compose -f ../infra/docker-compose.yml up -d --build --wait backend frontend
 npm run e2e:stack                            # 5 browser tests through nginx to the real API and stores

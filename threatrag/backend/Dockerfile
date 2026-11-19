@@ -27,8 +27,10 @@ RUN addgroup --system app && adduser --system --ingroup app app
 COPY --from=builder /install /usr/local
 COPY app/ ./app/
 COPY migrations/ ./migrations/
+# The feed job's eval guard scores retrieval against the golden set after an ATT&CK re-index
+COPY eval/golden.jsonl ./eval/golden.jsonl
 
-RUN chown -R app:app /app
+RUN mkdir -p /app/data && chown -R app:app /app   # a named volume on /app/data inherits this owner
 USER app
 
 EXPOSE 8000
