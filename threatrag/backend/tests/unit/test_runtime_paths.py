@@ -104,8 +104,30 @@ async def test_open_pool_degrades_when_postgres_down():
         connection.get_pool()
 
 
+def _pool_with_conn(execute: AsyncMock) -> MagicMock:
+    conn = MagicMock(execute=execute)
+    ctx = MagicMock(__aenter__=AsyncMock(return_value=conn), __aexit__=AsyncMock(return_value=False))
+    return MagicMock(open=AsyncMock(), close=AsyncMock(), connection=MagicMock(return_value=ctx))
+
+
+async def test_open_pool_degrades_when_first_query_fails():
+    pool = _pool_with_conn(AsyncMock(side_effect=OSError("ssl closed")))
+    with patch.object(connection, "AsyncConnectionPool", return_value=pool):
+        assert await connection.open_pool() is False
+    pool.close.assert_awaited_once()
+
+
+async def test_pool_holds_no_idle_connections_and_checks_on_checkout():
+    pool = _pool_with_conn(AsyncMock())
+    with patch.object(connection, "AsyncConnectionPool", return_value=pool) as cls:
+        assert await connection.open_pool() is True
+    kw = cls.call_args.kwargs
+    assert kw["min_size"] == 0 and kw["max_idle"] < 300 and kw["check"] is not None
+    await connection.close_pool()
+
+
 async def test_pool_lifecycle():
-    pool = MagicMock(open=AsyncMock(), close=AsyncMock())
+    pool = _pool_with_conn(AsyncMock())
     with patch.object(connection, "AsyncConnectionPool", return_value=pool):
         assert await connection.open_pool() is True
     assert connection.get_pool() is pool
