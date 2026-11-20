@@ -41,6 +41,12 @@ test('a vote is stored in Postgres and shows on the analytics page', async ({ pa
   await expect(page.getByText('“stack check ' + target + '”')).toBeVisible()
 })
 
+test('export options come from the real configuration', async ({ request }) => {
+  const options = await (await request.get('/api/v1/investigate/exports')).json()
+  expect(options).toMatchObject({ pdf: true })
+  expect(typeof options.slack).toBe('boolean')
+})
+
 test('a real question gets a streamed answer with cited sources', async ({ page }) => {
   test.skip(!test.info().project.metadata.llm, 'needs a model key and an ingested corpus (set STACK_LLM=1)')
   test.setTimeout(180_000)

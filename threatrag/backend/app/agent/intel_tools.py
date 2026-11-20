@@ -5,6 +5,7 @@ from typing import Any, Type
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from app.agent import intel_reputation as rep
 from app.agent import intel_sources as src
 from app.agent.investigation_models import IOC_PATTERNS
 from app.core.config import get_settings
@@ -34,7 +35,7 @@ class CVEExploitInput(BaseModel):
 
 class IPIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
     name: str = "ip_intel_lookup"
-    description: str = "Check a public IP's open ports, known CVEs, abuse reports and threat reports."
+    description: str = "Check a public IP's open ports, known CVEs, abuse and scanner reputation, owner and threat reports."
     args_schema: Type[BaseModel] = IPInput
 
     async def _arun(self, ip: str) -> str:
@@ -51,12 +52,15 @@ class IPIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__
             "AbuseIPDB": src.abuseipdb(value, s.abuseipdb_api_key) if s.abuseipdb_api_key else None,
             "AlienVault OTX": src.otx(section, value, s.otx_api_key) if s.otx_api_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
+            "GreyNoise": rep.greynoise(value, s.greynoise_api_key) if s.greynoise_api_key else None,
+            "VirusTotal": rep.virustotal("ip", value, s.virustotal_api_key) if s.virustotal_api_key else None,
+            "RDAP": rep.rdap_ip(value),
         }))
 
 
 class DomainIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace__ stub quirk
     name: str = "domain_intel_lookup"
-    description: str = "Check a domain against malware URL feeds and threat reports."
+    description: str = "Check a domain's registration age, engine verdicts, malware URL feeds and threat reports."
     args_schema: Type[BaseModel] = DomainInput
 
     async def _arun(self, domain: str) -> str:
@@ -68,6 +72,8 @@ class DomainIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __repla
             "AlienVault OTX": src.otx("domain", value, s.otx_api_key) if s.otx_api_key else None,
             "URLhaus": src.urlhaus(value, s.abusech_auth_key) if s.abusech_auth_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
+            "VirusTotal": rep.virustotal("domain", value, s.virustotal_api_key) if s.virustotal_api_key else None,
+            "RDAP": rep.rdap_domain(value),
         }))
 
 
@@ -85,6 +91,7 @@ class HashIntelTool(_IntelTool):  # type: ignore[override]  # pydantic __replace
             "AlienVault OTX": src.otx("file", value, s.otx_api_key) if s.otx_api_key else None,
             "MalwareBazaar": src.malwarebazaar(value, s.abusech_auth_key) if s.abusech_auth_key else None,
             "ThreatFox": src.threatfox(value, s.abusech_auth_key) if s.abusech_auth_key else None,
+            "VirusTotal": rep.virustotal("hash", value, s.virustotal_api_key) if s.virustotal_api_key else None,
         }))
 
 

@@ -186,21 +186,24 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
   in shared state, pulls a TAXII 2.1 collection from a cursor, and re-runs the retrieval eval after
   every ATT&CK change: a hit@6 drop over 0.03 is flagged and exits non-zero. Status:
   `GET /api/v1/ingest/feeds` and the Knowledge Base page.
+- **Reports leave the tool the way a SOC needs them.** A saved report exports as STIX 2.1 or a
+  PDF, or posts its executive summary to Slack or Teams. Webhook URLs come from configuration
+  only, never from a request. The PDF prints model-written HTML as text rather than rendering it.
 - **Small files.** Every source file is ≤ 150 lines with one responsibility.
 
 ## Quality gates
 
 ```bash
 cd threatrag/backend
-ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 281 tests
+ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 290 tests
 pytest tests/integration -m integration      # 11 tests on real Qdrant, Redis and Postgres
 python -m app.scripts.run_guard_eval         # injection suite
 cd ../web
 npm run lint && npm run typecheck && npm test && npm run build   # 7 component/client tests
-npm run e2e                                  # 8 Playwright tests, API mocked in the browser
+npm run e2e                                  # 9 Playwright tests, API mocked in the browser
 # Full stack, nothing mocked (WEB_PORT if 3000 is taken; STACK_LLM=1 adds a live model test)
 docker compose -f ../infra/docker-compose.yml up -d --build --wait backend frontend
-npm run e2e:stack                            # 5 browser tests through nginx to the real API and stores
+npm run e2e:stack                            # 6 browser tests through nginx to the real API and stores
 ```
 
 CI (`.github/workflows/ci.yml`) runs all of the above with service containers, brings up the

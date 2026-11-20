@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import get_store
-from app.api.routes import chat, evaluate, feedback, ingest, investigate, metrics, query
+from app.api.routes import chat, evaluate, exports, feedback, ingest, investigate, metrics, query
 from app.api.identity import rate_limit
 from app.api.security import require_api_key
 from app.core.config import get_settings
+from app.core.llm_errors import ModelUnavailable
 from app.core.state import get_state
 from app.db.connection import close_pool, is_db_ready, open_pool
 from app.core.logging import configure_logging, get_logger, logging_middleware
@@ -64,8 +66,14 @@ app.add_middleware(
 )
 app.middleware("http")(logging_middleware)
 
+
+@app.exception_handler(ModelUnavailable)
+async def model_unavailable(_: Request, exc: ModelUnavailable) -> JSONResponse:
+    """G47: provider rate limits are a temporary refusal, not a server error."""
+    return JSONResponse(status_code=503, content={"detail": str(exc)}, headers={"Retry-After": str(exc.retry_after_s)})
+
 for _router in (ingest.router, query.router, chat.router, investigate.router, evaluate.router, metrics.router,
-                feedback.router):
+                feedback.router, exports.router):
     app.include_router(_router, prefix="/api/v1", dependencies=[Depends(require_api_key), Depends(rate_limit)])
 
 

@@ -17,6 +17,7 @@ from pydantic import SecretStr
 
 from app.core.config import Settings, get_settings
 from app.core.gemini_compat import GeminiCompatChatOpenAI
+from app.core.llm_errors import unavailable
 from app.core.logging import get_logger
 from app.core.tracing import llm_callbacks
 
@@ -49,9 +50,13 @@ class FallbackChatOpenAI(GeminiCompatChatOpenAI):  # type: ignore[override]  # p
             return await super()._agenerate(messages, stop, run_manager, **kwargs)
         except Exception as exc:
             if self.fallback is None or not should_fallback(exc):
-                raise
+                raise unavailable(exc) or exc
             log.warning("llm_fallback", primary=self.model_name, fallback=self.fallback.model_name, error=str(exc)[:200])
+            primary = exc
+        try:
             return await self.fallback._agenerate(messages, stop, run_manager, **kwargs)
+        except Exception as exc:
+            raise unavailable(primary, exc) or exc
 
     async def _astream(self, *args: Any, **kwargs: Any) -> AsyncIterator[ChatGenerationChunk]:
         started = False
@@ -63,10 +68,14 @@ class FallbackChatOpenAI(GeminiCompatChatOpenAI):  # type: ignore[override]  # p
         except Exception as exc:
             # Once tokens reached the client a mid-stream switch would duplicate output.
             if started or self.fallback is None or not should_fallback(exc):
-                raise
+                raise (None if started else unavailable(exc)) or exc
             log.warning("llm_fallback", primary=self.model_name, fallback=self.fallback.model_name, error=str(exc)[:200])
-        async for chunk in self.fallback._astream(*args, **kwargs):
-            yield chunk
+            primary = exc
+        try:
+            async for chunk in self.fallback._astream(*args, **kwargs):
+                yield chunk
+        except Exception as exc:
+            raise unavailable(primary, exc) or exc
 
 
 def _client(s: Settings, *, model: str, key: str, base_url: str, streaming: bool, temperature: float) -> dict[str, Any]:
