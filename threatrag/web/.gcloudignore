@@ -1,0 +1,22 @@
+# Files never uploaded to Cloud Build (secrets and local-only bulk)
+.gcloudignore
+.git/
+.gitignore
+.env
+.env.*
+*.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+dist/
+e2e/
+test-results/
+playwright-report/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.tsbuildinfo

@@ -16,10 +16,15 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 | Variable | Local | Deployed | How to get it |
 |---|---|---|---|
-| `GEMINI_API_KEY` | **required** | **required** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → *Create API key*. Free tier is rate-limited; billing raises the limits. |
+| `LLM_ORDER` | `groq,openrouter,gemini,cerebras` | same | Providers tried in order; one with an empty key is skipped, so the first keyed one is primary and the rest are its fallback chain. Known: `openrouter`, `groq`, `cerebras`, `gemini`, `kimchi`. |
+| `OPENROUTER_API_KEY` | fallback | fallback | [openrouter.ai/keys](https://openrouter.ai/keys) → *Create Key* (`sk-or-v1-…`). Free models end in `:free`: 20 requests/min, **50/day** until the account has bought $10 of credits once, then 1,000/day. |
+| `OPENROUTER_MODEL` | `nvidia/nemotron-3.5-lightning:free` | same | Must support tool calling. List free tool-capable models: `curl -s https://openrouter.ai/api/v1/models` and keep IDs ending `:free` whose `supported_parameters` include `tools`. |
+| `GEMINI_API_KEY` | fallback | fallback | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → *Create API key*. Free tier: 15 requests/min. Also used for the judge and for cloud embeddings. |
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | same | Must be a model your key serves. On a 404, list models: `curl "https://generativelanguage.googleapis.com/v1beta/openai/models" -H "Authorization: Bearer $GEMINI_API_KEY"` |
-| `JUDGE_MODEL` | `gemini-3.1-flash-lite` | same | A different model from the generator, so evaluation does not grade its own work. Reuses the Gemini key. |
-| `KIMCHI_API_KEY`, `LLM_MODEL` | optional | optional | Fallback provider. Skipped while the key is empty. |
+| `GROQ_API_KEY`, `GROQ_MODEL` | primary (`qwen/qwen3.8-27b`) | primary | [console.groq.com/keys](https://console.groq.com/keys). Free, no card, the lowest latency of the free options. Free tier: 1,000 requests/day, 8,000 tokens/min per model, so a long investigation spills over to the next provider. Model list: `GET https://api.groq.com/openai/v1/models`. |
+| `CEREBRAS_API_KEY`, `CEREBRAS_MODEL` | optional | optional | [cloud.cerebras.ai](https://cloud.cerebras.ai) → *API Keys*. Free, no card, very fast; generous daily token allowance. |
+| `JUDGE_MODEL`, `JUDGE_PROVIDER` | `gemini-3.1-flash-lite`, `gemini` | same | A different model from the generator, so evaluation does not grade its own work. `JUDGE_PROVIDER` names whose key and URL it uses. |
+| `KIMCHI_API_KEY`, `LLM_MODEL` | not used | not used | Only when `kimchi` is in `LLM_ORDER`. |
 | `EMBEDDING_PROVIDER` | `ollama` | `gemini` | Most hosts cannot run Ollama. Gemini embeddings reuse `GEMINI_API_KEY`. |
 | `OLLAMA_URL` | `http://localhost:11434` | — | `brew install ollama && ollama pull nomic-embed-text` |
 | `QDRANT_COLLECTION` | `threat_intel_v2` | e.g. `threat_intel_gemini` | **A new embedder needs a new collection name and a re-ingest**: the API refuses to start on a collection built with another embedder. |
@@ -92,7 +97,7 @@ No key needed: Shodan InternetDB, CISA KEV, FIRST EPSS, RDAP *(Phase 12)*.
 
 ## Checklists
 
-**Local, full features:** `GEMINI_API_KEY`, `JUDGE_MODEL`, `REDIS_URL=redis://localhost:6380/0`,
+**Local, full features:** `OPENROUTER_API_KEY` and/or `GROQ_API_KEY`, `GEMINI_API_KEY`, `JUDGE_MODEL`, `REDIS_URL=redis://localhost:6380/0`,
 `TAVILY_API_KEY`, `ABUSEIPDB_API_KEY`, `OTX_API_KEY`, `ABUSECH_AUTH_KEY`, then (as their phases
 land) `NVD_API_KEY`, `VIRUSTOTAL_API_KEY`, `GREYNOISE_API_KEY`, `SLACK_WEBHOOK_URL`.
 Restart the API after editing `.env`; `GET /health/ready` shows what is connected.

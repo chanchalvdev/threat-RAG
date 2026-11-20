@@ -7,6 +7,7 @@ import pytest
 
 os.environ.setdefault("KIMCHI_API_KEY", "test-key-for-unit-tests")
 
+from app.core.config import Settings
 from app.agent.investigation_models import InvestigationReport  # noqa: E402
 from app.agent.technique_check import validate_techniques  # noqa: E402
 from app.rag.embedder import GeminiEmbedder, embedding_tag  # noqa: E402
@@ -81,12 +82,12 @@ async def test_llm_probe_reports_connection_error(httpx_mock):
     ("", "", []),
 ])
 def test_llm_targets(kimchi, gemini, expected):
-    s = MagicMock(kimchi_api_key=kimchi, gemini_api_key=gemini)
+    s = Settings(_env_file=None, kimchi_api_key=kimchi, gemini_api_key=gemini)
     assert [t[0] for t in readiness._llm_targets(s)] == expected
 
 
 def test_llm_target_order_puts_gemini_first():
-    s = MagicMock(kimchi_api_key="k", gemini_api_key="g", gemini_model="gem", llm_model="kim")
+    s = Settings(_env_file=None, kimchi_api_key="k", gemini_api_key="g", gemini_model="gem", llm_model="kim")
     assert [t[3] for t in readiness._llm_targets(s)] == ["gem", "kim"]
 
 
@@ -124,3 +125,11 @@ async def test_technique_notes_never_fail_the_report():
     report = InvestigationReport(ioc="x", ioc_type="cve", final_report="T1059")
     with patch.object(svc, "get_store", return_value=MagicMock(technique_names=AsyncMock(side_effect=OSError))):
         assert await svc._technique_notes(report) == ""
+
+
+async def test_gemini_embedder_waits_for_googles_retry_delay(httpx_mock):
+    httpx_mock.add_response(status_code=429, json={"error": {"details": [{"retryDelay": "41s"}]}})
+    httpx_mock.add_response(json={"embeddings": [{"values": [0.4]}]})
+    with patch("app.rag.embedder.asyncio.sleep", new=AsyncMock()) as sleep:
+        assert await GeminiEmbedder("k", "m", 768).embed("q") == [0.4]
+    sleep.assert_awaited_once_with(42)

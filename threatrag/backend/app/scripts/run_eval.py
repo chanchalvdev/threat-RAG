@@ -13,6 +13,7 @@ from pathlib import Path
 
 from app.api.deps import get_chain, get_retriever, get_store
 from app.core.config import get_settings
+from app.core.llm_providers import providers
 from app.evaluation.golden import GoldenItem, load_golden, unknown_ids
 from app.evaluation.harness import Answer, evaluate_answers, evaluate_retrieval
 from app.evaluation.report import answer_table, retrieval_table
@@ -62,7 +63,9 @@ async def main(args: argparse.Namespace) -> None:
     }
     print(f"## Retrieval — {args.label}\n\n{retrieval_table(result['retrieval'])}\n")
     if args.answers:
-        result["generator"], result["judge"] = s.gemini_model if s.gemini_api_key else s.llm_model, s.judge_model or "same as generator"
+        configured = providers(s)
+        result["generator"] = configured[0].model if configured else None
+        result["judge"] = s.judge_model or "same as generator"
         result["answers"] = await evaluate_answers(sample(items, args.answers), _answer, delay_s=args.delay)
         print(f"## Answers — {args.label}\n\n{answer_table(result['answers'])}\n")
 

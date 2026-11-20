@@ -111,7 +111,8 @@ async def test_evaluate_survives_persist_failure(client):
 
 async def test_readiness_is_degraded_on_402_and_cached(client, httpx_mock):
     s = MagicMock(qdrant_url="http://q", qdrant_collection="c", qdrant_api_key="", embedding_provider="gemini",
-                  kimchi_api_key="k", kimchi_base_url="http://llm", llm_model="m", gemini_api_key="")
+                  kimchi_api_key="k", kimchi_base_url="http://llm", llm_model="m", gemini_api_key="",
+                  llm_order="kimchi")
     httpx_mock.add_response(url="http://q/collections/c", json={})
     httpx_mock.add_response(url="http://llm/chat/completions", status_code=402)
     readiness._cache.update({"data": None, "expires": 0.0})

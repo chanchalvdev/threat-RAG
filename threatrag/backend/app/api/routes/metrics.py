@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.core.config import get_settings
-from app.core.llm import providers
+from app.core.llm_providers import providers
 from app.core.telemetry import telemetry
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
@@ -21,5 +21,5 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 async def metrics() -> dict[str, Any]:
     snapshot = telemetry.snapshot()
     configured = providers(get_settings())
-    snapshot["llm"]["primary_model"] = configured[0][0] if configured else None
+    snapshot["llm"]["primary_model"] = configured[0].model if configured else None
     return snapshot

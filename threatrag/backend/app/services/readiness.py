@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings, get_settings
-from app.core.llm import providers
+from app.core.llm_providers import providers
 from app.core.state import get_state
 from app.db.connection import get_pool, is_db_ready
 from app.models.schemas import ReadinessCheck
@@ -17,8 +17,10 @@ _cache: dict[str, Any] = {"data": None, "expires": 0.0}
 
 def _llm_targets(s: Settings) -> list[tuple[str, str, str, str]]:
     """(check name, base URL, API key, model) for each configured provider."""
-    names = ("llm", "llm_fallback")
-    return [(name, base, key, model) for name, (model, key, base) in zip(names, providers(s))]
+    return [
+        ("llm" if i == 0 else "llm_fallback" if i == 1 else f"llm_fallback_{i}", p.base_url, p.key, p.model)
+        for i, p in enumerate(providers(s))
+    ]
 
 
 async def _probe_llm(base: str, key: str, model: str) -> str:

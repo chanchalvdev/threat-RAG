@@ -6,13 +6,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Cloud Run mounts every key as one Secret Manager file (one secret = free tier); a missing
+        # file is skipped, and the later file wins.
+        env_file=(".env", "/secrets/threatrag.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
     )
 
-    # LLM fallback — Kimchi (OpenAI-compatible), used when its key is set
+    # LLM providers, tried in LLM_ORDER; one without a key is skipped (app/core/llm_providers.py)
+    llm_order: str = "groq,openrouter,gemini,cerebras,kimchi"
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "nvidia/nemotron-3.5-lightning:free"
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "qwen/qwen3.8-27b"
+    cerebras_api_key: str = ""
+    cerebras_base_url: str = "https://api.cerebras.ai/v1"
+    cerebras_model: str = "gpt-oss-120b"
+    # Kimchi (OpenAI-compatible); LLM_MODEL is its model
     kimchi_api_key: str = ""
     kimchi_base_url: str = "https://llm.kimchi.dev/openai/v1"
     llm_provider: Literal["kimchi", "openai"] = "kimchi"
@@ -20,14 +33,16 @@ class Settings(BaseSettings):
     llm_timeout_s: float = 120.0
     llm_max_tokens: int = 4096  # hard cap on completion length (guards against runaway generation)
 
-    # LLM primary — Google Gemini via its OpenAI-compatible endpoint
+    # Google Gemini via its OpenAI-compatible endpoint
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     gemini_model: str = "gemini-3.5-flash-lite"
 
     # Evaluation judge: a different model from the generator, so it does not grade its own work.
-    # Key and base URL default to the primary provider's.
+    # JUDGE_PROVIDER names a provider in LLM_ORDER to take its key and URL; else JUDGE_API_KEY /
+    # JUDGE_BASE_URL; else the primary provider's.
     judge_model: str = ""
+    judge_provider: str = ""
     judge_api_key: str = ""
     judge_base_url: str = ""
 
