@@ -61,7 +61,8 @@ $G projects add-iam-policy-binding "$PROJECT" --condition=None --role=roles/clou
 
 step "Secrets"
 ENV_SECRET="$(mktemp)"; KEY_SECRET="$(mktemp)"; trap 'rm -f "$ENV_SECRET" "$KEY_SECRET"' EXIT
-grep -vE '^(GCP_|#|$)' "$ENV_FILE" > "$ENV_SECRET"
+# Drop comments, deploy-only GCP_ lines and blank values (blank = default; an empty list fails to parse)
+grep -vE '^(GCP_|#|$)|^[A-Z0-9_]+=[[:space:]]*$' "$ENV_FILE" > "$ENV_SECRET"
 printf '%s' "$(val API_KEY)" > "$KEY_SECRET"
 put_secret threatrag-env "$ENV_SECRET"
 put_secret threatrag-api-key "$KEY_SECRET"
