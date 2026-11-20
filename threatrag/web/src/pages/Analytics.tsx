@@ -5,6 +5,7 @@ import { cn } from '../lib/cn'
 import { getEvaluationHistory, runEvaluation } from '../lib/api'
 import RuntimeMetrics from '../components/RuntimeMetrics'
 import QualityTrends from '../components/QualityTrends'
+import FeedbackPanel from '../components/FeedbackPanel'
 
 const FIELDS = [
   { key: 'question',     label: 'Question',     rows: 2, placeholder: 'The question that was asked' },
@@ -66,6 +67,14 @@ export default function Analytics() {
           <span className="text-ochre font-semibold"> dashed ochre</span> the 0.5 floor
         </p>
         <QualityTrends rows={trend} loading={history.isLoading} />
+      </section>
+
+      <section aria-labelledby="feedback-h" className="space-y-3">
+        <div>
+          <h2 id="feedback-h" className="display text-2xl [font-variation-settings:'wdth'_80]">Analyst feedback</h2>
+          <p className="text-sm text-ink-2 mt-1">Votes on chat answers and investigation reports, from every analyst</p>
+        </div>
+        <FeedbackPanel />
       </section>
 
       <section aria-labelledby="eval-h" className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] gap-8 items-start">

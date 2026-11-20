@@ -38,8 +38,10 @@ _graph = build_graph()
 
 
 def _initial_state(req: InvestigationRequest) -> InvestigationState:
+    gaps = (req.analyst_gaps or "").strip()
     return {
-        "ioc": req.ioc, "ioc_type": req.ioc_type, "researcher_output": "", "critic_feedback": "",
+        "ioc": req.ioc, "ioc_type": req.ioc_type, "researcher_output": "",
+        "critic_feedback": f"NEEDS_REVISION: Analyst review asks for: {gaps}" if gaps else "", "analyst_gaps": gaps,
         "final_report": "", "sources": [], "tool_calls": [], "iteration": 0, "status": "researching",
     }
 
@@ -56,9 +58,14 @@ def _to_report(state: InvestigationState) -> InvestigationReport:
     )
 
 
+def _with_lineage(report: InvestigationReport, req: InvestigationRequest) -> InvestigationReport:
+    report.parent_id, report.analyst_gaps = req.parent_id, (req.analyst_gaps or "").strip() or None
+    return report
+
+
 async def run_investigation(req: InvestigationRequest) -> InvestigationReport:
     result = await _graph.ainvoke(_initial_state(req), config=GRAPH_CONFIG)
-    return _to_report(result)
+    return _with_lineage(_to_report(result), req)
 
 
 def _summary(node: str, update: dict[str, Any]) -> str:
@@ -98,4 +105,4 @@ async def stream_investigation(req: InvestigationRequest) -> AsyncIterator[dict[
                 yield {"type": "report_chunk", "data": safe}
     if tail := clean.flush():
         yield {"type": "report_chunk", "data": tail}
-    yield {"type": "complete", "report": _to_report(state)}  # type: ignore[arg-type]
+    yield {"type": "complete", "report": _with_lineage(_to_report(state), req)}  # type: ignore[arg-type]

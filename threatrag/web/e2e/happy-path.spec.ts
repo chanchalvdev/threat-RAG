@@ -1,22 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-
-const sse = (events: object[]) => events.map(e => 'data: ' + JSON.stringify(e) + '\n\n').join('')
-
-const SOURCE = { text: 'One password tried against many accounts.', source: 'MITRE ATT&CK Enterprise', doc_type: 'mitre_attack', score: 0.82, ref_id: 'T1110.003' }
-
-async function mockApi(page: Page) {
-  await page.route('**/health', route => route.fulfill({ json: { status: 'ok' } }))
-  await page.route('**/api/v1/chat/suggestions', route => route.fulfill({ json: { suggestions: [] } }))
-  await page.route('**/api/v1/metrics', route => route.fulfill({ json: {
-    routes: { 'POST /api/v1/chat/stream': { requests: 3, errors_5xx: 0, p50_ms: 412.5, p95_ms: 980.1 } },
-    llm: { calls: 7, tokens_in: 9120, tokens_out: 1480, p50_ms: 3100, p95_ms: 5200, estimated_cost_usd: null },
-    counters: { guard_blocked: 2, guard_allowed: 9, rag_abstained: 1 },
-  } }))
-  await page.route('**/api/v1/evaluate/history**', route => route.fulfill({ json: [] }))
-  await page.route('**/api/v1/ingest/stats', route => route.fulfill({ json: {
-    collection: 'threat_intel_v2', total_vectors: 3506, doc_type_counts: { mitre_attack: 3379, owasp_llm: 127 },
-  } }))
-}
+import { expect, test } from '@playwright/test'
+import { mockApi, sse, SOURCE } from './mocks'
 
 test('analyst asks a question and gets a streamed, cited answer with a tool timeline', async ({ page }) => {
   await mockApi(page)

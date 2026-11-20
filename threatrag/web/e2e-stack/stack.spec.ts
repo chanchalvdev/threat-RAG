@@ -33,6 +33,14 @@ test('the chat history endpoint answers from shared state for an unknown session
   expect(await history.json()).toEqual([])
 })
 
+test('a vote is stored in Postgres and shows on the analytics page', async ({ page, request }) => {
+  const target = 'stack-' + Date.now()
+  const vote = await request.post('/api/v1/feedback', { data: { target: 'report', target_id: target, rating: -1, note: 'stack check ' + target } })
+  expect(vote.ok()).toBe(true)
+  await page.goto('/analytics')
+  await expect(page.getByText('“stack check ' + target + '”')).toBeVisible()
+})
+
 test('a real question gets a streamed answer with cited sources', async ({ page }) => {
   test.skip(!test.info().project.metadata.llm, 'needs a model key and an ingested corpus (set STACK_LLM=1)')
   test.setTimeout(180_000)

@@ -12,9 +12,12 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "migrations"
 
 
 async def run_migrations() -> None:
+    files = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    if not files:  # an image built without migrations/ would otherwise start with no tables
+        raise RuntimeError(f"No migrations found in {MIGRATIONS_DIR}")
     s = get_settings()
     async with await psycopg.AsyncConnection.connect(s.database_url) as conn:
-        for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        for sql_file in files:
             sql = sql_file.read_text()
             await conn.execute(sql.encode())
             log.info("migration_applied", file=sql_file.name)

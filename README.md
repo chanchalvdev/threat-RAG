@@ -175,21 +175,26 @@ Raw per-question rows for every run are in `threatrag/backend/eval/results/`.
   the provider quota.
 - **Readiness that tells the truth.** `/health/ready` runs a one-token completion, because a
   provider can list models while refusing every request.
+- **The analyst closes the loop.** Answers and reports take a vote and a note
+  (`POST /api/v1/feedback`, one vote per analyst and target). A report can be sent back with the
+  gaps the analyst wants covered; the new report links to its parent. Down-voted questions export
+  as golden-set drafts (`GET /api/v1/feedback/candidates`) for a person to check, never added
+  to the eval automatically.
 - **Small files.** Every source file is ≤ 150 lines with one responsibility.
 
 ## Quality gates
 
 ```bash
 cd threatrag/backend
-ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 258 tests
-pytest tests/integration -m integration      # 9 tests on real Qdrant, Redis and Postgres
+ruff check app/ && mypy app/ && pytest tests/unit --cov=app --cov-fail-under=80   # 268 tests
+pytest tests/integration -m integration      # 11 tests on real Qdrant, Redis and Postgres
 python -m app.scripts.run_guard_eval         # injection suite
 cd ../web
 npm run lint && npm run typecheck && npm test && npm run build   # 7 component/client tests
-npm run e2e                                  # 3 Playwright tests, API mocked in the browser
+npm run e2e                                  # 6 Playwright tests, API mocked in the browser
 # Full stack, nothing mocked (WEB_PORT if 3000 is taken; STACK_LLM=1 adds a live model test)
 docker compose -f ../infra/docker-compose.yml up -d --build --wait backend frontend
-npm run e2e:stack                            # 4 browser tests through nginx to the real API and stores
+npm run e2e:stack                            # 5 browser tests through nginx to the real API and stores
 ```
 
 CI (`.github/workflows/ci.yml`) runs all of the above with service containers, brings up the

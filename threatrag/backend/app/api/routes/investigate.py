@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.api.identity import llm_budget
 from app.agent.investigation_models import InvestigationReport, InvestigationRequest, ReportSummary
 from app.api.deps import get_store
+from app.api.security import ensure_safe
 from app.db import reports as repo
 from app.db.connection import get_pool, is_db_ready
 from app.services.investigation_service import investigate, investigate_sse
@@ -23,6 +24,12 @@ _SSE_EXAMPLE = (
 )
 
 
+async def _check_gaps(req: InvestigationRequest) -> None:
+    """The analyst's gaps reach the Researcher's prompt, so they go through the injection guard."""
+    if req.analyst_gaps:
+        await ensure_safe(req.analyst_gaps)
+
+
 def _require_db() -> None:
     if not is_db_ready():
         raise HTTPException(status_code=503, detail="Report storage unavailable (PostgreSQL not connected)")
@@ -38,6 +45,7 @@ def _require_db() -> None:
     responses={200: {"content": {"text/event-stream": {"example": _SSE_EXAMPLE}}}},
 )
 async def investigate_stream(req: InvestigationRequest) -> StreamingResponse:
+    await _check_gaps(req)
     return StreamingResponse(
         investigate_sse(req),
         media_type="text/event-stream",
@@ -52,6 +60,7 @@ async def investigate_stream(req: InvestigationRequest) -> StreamingResponse:
     summary="Run an investigation to completion and persist the report",
 )
 async def save_investigation(req: InvestigationRequest) -> InvestigationReport:
+    await _check_gaps(req)
     return await investigate(req)
 
 
