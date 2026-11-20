@@ -7,6 +7,7 @@ const NAMES: Record<string, { label: string; ink: string }> = {
   owasp_llm:    { label: 'OWASP LLM Top 10', ink: 'text-ochre' },
   cve:          { label: 'CVE', ink: 'text-verm' },
   custom:       { label: 'Custom PDFs', ink: 'text-green' },
+  taxii:        { label: 'TAXII feed', ink: 'text-ink-2' },
 }
 
 /** Vector counts per source as a ruled register: columns stay put, numbers tick in place. */

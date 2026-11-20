@@ -8,7 +8,7 @@
 | Phase | Branch | Theme | Status |
 |---|---|---|---|
 | 10 | `feat/phase10-analyst-feedback` | Feedback on answers and reports; analyst sends a report back | **done** 2026-11-19 |
-| 11 | `feat/phase11-fresh-knowledge` | Scheduled ATT&CK / KEV / TAXII refresh, guarded by the eval | planned |
+| 11 | `feat/phase11-fresh-knowledge` | Scheduled ATT&CK / KEV / TAXII refresh, guarded by the eval | **done** 2026-11-20 |
 | 12 | `feat/phase12-enrichment-exports` | RDAP, VirusTotal, GreyNoise; PDF export; Slack / Teams | planned |
 | 13 | `feat/phase13-deploy` | Public deployment, live Langfuse trace, live-model CI test | needs accounts |
 
@@ -74,6 +74,26 @@ Found during Phase 10:
 
 Acceptance: an unchanged ETag re-indexes nothing; a changed bundle removes stale techniques; two
 API workers share one KEV copy; the TAXII cursor advances; the NVD key is sent when set.
+
+### Phase 11 result (verified 2026-11-20 on the compose stack)
+
+- First run: the live ATT&CK bundle had changed since the corpus was built: 706 techniques,
+  3,479 passages (was 3,428), 1 stale passage pruned, 96 s on CPU embeddings. A second run took
+  3 s: ETag unchanged, nothing downloaded or indexed. KEV: 1,786 CVEs in shared state.
+- The eval guard caught a real change: hit@6 fell from 0.946 to 0.929 because the new release
+  adds T1698 Indirect and T1699 Direct Prompt Injection, which now outrank OWASP for `ow07`
+  ("difference between direct and indirect prompt injection?"). The golden set was stale, not the
+  retrieval: a golden item now accepts an expected technique or a matching passage of the
+  expected type, and `ow07` lists T1698/T1699. On the new corpus: hit@6 0.946, hit@3 0.893 → 0.911,
+  MRR 0.876 → 0.881 (`eval/results/v4-attack-refresh.json`).
+- That first run also showed the guard had nothing to compare with, so a first re-index became
+  the baseline unchecked. The job now scores the index before its first ATT&CK refresh; the
+  forced re-run recorded baseline 0.946 → after 0.946.
+- The bundle carries no release number; the release is named by its newest object change.
+- TAXII: client verified read-only against MITRE's public TAXII 2.1 server (ICS collection: 1,190
+  objects since 2025-01-01 → 64 passages, cursor from `X-TAXII-Date-Added-Last`); one request
+  there returned a transient 502, which fails the step and leaves the cursor for the next run.
+- Unit 281, Playwright 8 mocked + 5 full-stack.
 
 ## Phase 12 — Enrichment and exports
 

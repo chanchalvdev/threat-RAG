@@ -5,6 +5,7 @@ import { cn } from '../lib/cn'
 import { getIngestStats, getIngestStatus, ingestMITRE, ingestOWASP, ingestPDF } from '../lib/api'
 import type { IngestStatus } from '../lib/api'
 import IndexStats from '../components/IndexStats'
+import FeedStatus from '../components/FeedStatus'
 
 interface JobCard {
   job_id: string
@@ -99,6 +100,8 @@ export default function KnowledgeBase() {
         <section aria-labelledby="index-h">
           <h2 id="index-h" className="label">The index</h2>
           <IndexStats stats={stats} />
+          <h3 className="label mt-8 mb-1">Scheduled feeds</h3>
+          <FeedStatus />
         </section>
       </div>
     </div>

@@ -7,6 +7,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.intel_tools import intel_tools
+from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.guard.untrusted import wrap_untrusted
 from app.rag.sanitiser import sanitise_tool_input
@@ -64,8 +65,9 @@ class NVDCVETool(BaseTool):  # type: ignore[override]  # pydantic __replace__ st
             return f"Invalid CVE ID format: {cve_id}"
 
         url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
+        key = get_settings().nvd_api_key
         for attempt in range(3):
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=15, headers={"apiKey": key} if key else None) as client:
                 r = await client.get(url)
                 if r.status_code == 429:
                     await asyncio.sleep(2 ** attempt)
@@ -117,7 +119,6 @@ class TavilySearchTool(BaseTool):  # type: ignore[override]  # pydantic __replac
     args_schema: Type[BaseModel] = WebSearchInput
 
     async def _arun(self, query: str) -> str:
-        from app.core.config import get_settings
         s = get_settings()
         if not s.tavily_api_key:
             return "Web search not available: TAVILY_API_KEY not configured."

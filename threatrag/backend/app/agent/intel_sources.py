@@ -1,20 +1,17 @@
 """External threat-intel clients. Each returns one line of evidence, or None if it has no record."""
 import asyncio
-import time
 from collections.abc import Coroutine
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
+from app.feeds import kev as kev_feed
 from app.guard.heuristic import BLOCK_AT, score
 from app.rag.sanitiser import sanitise_output
 
 log = get_logger(__name__)
 TIMEOUT_S = 10
-KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-KEV_TTL_S = 6 * 3600
-_kev_cache: dict[str, Any] = {"items": {}, "expires": 0.0}
 
 
 async def _json(method: str, url: str, **kwargs: Any) -> Any:
@@ -101,10 +98,7 @@ async def threatfox(term: str, key: str) -> str | None:
 
 
 async def kev(cve_id: str) -> str | None:
-    if time.time() >= _kev_cache["expires"]:
-        feed = await _json("GET", KEV_URL)
-        _kev_cache.update(items={v["cveID"]: v for v in feed["vulnerabilities"]}, expires=time.time() + KEV_TTL_S)
-    v = _kev_cache["items"].get(cve_id)
+    v = await kev_feed.lookup(cve_id)
     if not v:
         return None
     return (

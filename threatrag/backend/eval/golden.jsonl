@@ -52,7 +52,7 @@
 {"id": "ow04", "category": "owasp", "question": "What supply chain risks does OWASP list for LLM applications?", "expected_ids": [], "expected_doc_type": "owasp_llm", "keywords": ["supply chain"], "answerable": true}
 {"id": "ow05", "category": "owasp", "question": "How does OWASP recommend handling LLM output before passing it to downstream systems?", "expected_ids": [], "expected_doc_type": "owasp_llm", "keywords": ["output handling"], "answerable": true}
 {"id": "ow06", "category": "owasp", "question": "What is training data poisoning in the OWASP LLM Top 10?", "expected_ids": [], "expected_doc_type": "owasp_llm", "keywords": ["poisoning"], "answerable": true}
-{"id": "ow07", "category": "owasp", "question": "What is the difference between direct and indirect prompt injection?", "expected_ids": [], "expected_doc_type": "owasp_llm", "keywords": ["indirect"], "answerable": true}
+{"id": "ow07", "category": "owasp", "question": "What is the difference between direct and indirect prompt injection?", "expected_ids": ["T1699", "T1698"], "expected_doc_type": "owasp_llm", "keywords": ["indirect"], "answerable": true}
 {"id": "ow08", "category": "owasp", "question": "Which mitigations does OWASP suggest against prompt injection?", "expected_ids": [], "expected_doc_type": "owasp_llm", "keywords": ["prompt injection"], "answerable": true}
 {"id": "un01", "category": "unanswerable", "question": "What is the capital of Australia?", "expected_ids": [], "expected_doc_type": null, "keywords": [], "answerable": false}
 {"id": "un02", "category": "unanswerable", "question": "Give me a recipe for sourdough bread.", "expected_ids": [], "expected_doc_type": null, "keywords": [], "answerable": false}

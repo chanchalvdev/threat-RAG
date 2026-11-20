@@ -9,6 +9,7 @@ from app.api.deps import get_store
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.state import get_state
+from app.feeds.runner import FeedStatus, last_run
 from app.models.schemas import IngestAccepted, IngestJob, IngestStats
 from app.rag.embedder import get_embedder
 from app.rag.ingest_mitre import ingest_mitre_attack
@@ -119,6 +120,11 @@ async def get_status(job_id: str) -> IngestJob:
     if raw is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return IngestJob.model_validate_json(raw)
+
+
+@router.get("/feeds", response_model=FeedStatus, summary="Last scheduled feed refresh (ATT&CK, KEV, TAXII)")
+async def feeds() -> FeedStatus:
+    return await last_run()
 
 
 @router.get(

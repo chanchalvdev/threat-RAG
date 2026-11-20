@@ -18,6 +18,7 @@ export async function mockApi(page: Page) {
     recent_down: [{ id: 'f1', target: 'answer', target_id: 's:1', rating: -1, note: 'missed APT29', question: 'Which groups use T1558.003?', created_at: '2026-11-19' }],
   } }))
   await page.route('**/api/v1/investigate/reports?**', route => route.fulfill({ json: [] }))
+  await page.route('**/api/v1/ingest/feeds', route => route.fulfill({ json: { at: null, ok: null, regressed: false, steps: {} } }))
   await page.route('**/api/v1/ingest/stats', route => route.fulfill({ json: {
     collection: 'threat_intel_v2', total_vectors: 3506, doc_type_counts: { mitre_attack: 3379, owasp_llm: 127 },
   } }))

@@ -22,9 +22,11 @@ def _squash(text: str) -> str:
 
 
 def is_relevant(item: GoldenItem, hit: Retrieved) -> bool:
-    if item.expected_ids:
-        return hit.technique_id in item.expected_ids
-    if item.expected_doc_type and hit.doc_type == item.expected_doc_type:
+    """An expected technique, or a passage of the expected type containing a keyword: either counts,
+    so a question both ATT&CK and OWASP answer is not failed for finding the other source."""
+    if item.expected_ids and hit.technique_id in item.expected_ids:
+        return True
+    if item.expected_doc_type and item.keywords and hit.doc_type == item.expected_doc_type:
         body = _squash(hit.text)
         return any(_squash(kw) in body for kw in item.keywords)
     return False
