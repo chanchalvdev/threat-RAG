@@ -1,4 +1,5 @@
 import asyncio
+import re
 from abc import ABC, abstractmethod
 
 import httpx
@@ -68,11 +69,18 @@ class NomicEmbedder(BaseEmbedder):
             return r.json()["embeddings"]
 
 
+def _retry_delay(r: httpx.Response) -> int | None:
+    """Seconds from Google's RetryInfo ("retryDelay": "41s"), plus a second of margin."""
+    m = re.search(r'"retryDelay"\s*:\s*"(\d+)', r.text)
+    return int(m.group(1)) + 1 if m else None
+
+
 class GeminiEmbedder(BaseEmbedder):
     """Hosted embedder (Gemini free tier) for deployments that cannot run Ollama."""
 
     _BASE = "https://generativelanguage.googleapis.com/v1beta"
     _MAX_BATCH = 100
+    _ATTEMPTS = 8
 
     def __init__(self, api_key: str, model: str, dim: int):
         self._key = api_key
@@ -86,14 +94,17 @@ class GeminiEmbedder(BaseEmbedder):
             for t in texts
         ]
         async with httpx.AsyncClient(timeout=60) as client:
-            for attempt in range(4):
+            for attempt in range(self._ATTEMPTS):
                 r = await client.post(
                     f"{self._BASE}/{self._model}:batchEmbedContents",
                     headers={"x-goog-api-key": self._key},
                     json={"requests": requests},
                 )
-                if r.status_code == 429 and attempt < 3:
-                    await asyncio.sleep(2 ** attempt * 5)  # free-tier rate limit
+                if r.status_code == 429 and attempt < self._ATTEMPTS - 1:
+                    # Free tier is a per-minute quota: wait out Google's retryDelay, not a short backoff.
+                    delay = _retry_delay(r) or min(65, 5 * 2 ** attempt)
+                    log.info("embedding_rate_limited", wait_s=delay, attempt=attempt + 1)
+                    await asyncio.sleep(delay)
                     continue
                 r.raise_for_status()
                 return [e["values"] for e in r.json()["embeddings"]]

@@ -22,6 +22,8 @@ class ModelUnavailable(RuntimeError):
 
 
 def is_capacity(exc: BaseException) -> bool:
+    if isinstance(exc, ModelUnavailable):  # a nested fallback chain that was itself at capacity
+        return True
     if isinstance(exc, openai.APIStatusError):
         return exc.status_code in CAPACITY_STATUS
     return isinstance(exc, openai.APIError) and bool(_CAPACITY_TEXT.search(str(exc)))
@@ -29,6 +31,8 @@ def is_capacity(exc: BaseException) -> bool:
 
 def retry_after(exc: BaseException) -> int:
     """The provider's own hint (Gemini: "Please retry in 56.01s" / retryDelay '56s'), else a minute."""
+    if isinstance(exc, ModelUnavailable):
+        return exc.retry_after_s
     match = _RETRY_IN.search(str(exc))
     return max(1, int(float(match.group(1) or match.group(2)) + 0.999)) if match else DEFAULT_RETRY_S
 

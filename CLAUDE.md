@@ -39,7 +39,7 @@ threat-RAG/
 | Backend | Python 3.13 + FastAPI + Pydantic v2 |
 | RAG | LangChain 1.3 |
 | Agents | LangGraph 1.2 |
-| LLM | Gemini primary, Kimchi fallback (both OpenAI-compatible) |
+| LLM | Providers in `LLM_ORDER` (Groq → OpenRouter → Gemini → Cerebras; Kimchi opt-in), all OpenAI-compatible |
 | Embeddings | Ollama nomic-embed-text (local) |
 | Vector DB | Qdrant |
 | Relational DB | PostgreSQL + pgvector (reports, evaluation history) |
@@ -48,8 +48,10 @@ threat-RAG/
 | Streaming | SSE (FastAPI StreamingResponse) |
 
 ## LLM Configuration
-- Primary: Gemini via its OpenAI-compatible endpoint — `GEMINI_API_KEY`, `GEMINI_MODEL`
-- Fallback: Kimchi — `KIMCHI_API_KEY`, `KIMCHI_BASE_URL`, `LLM_MODEL`
+- `LLM_ORDER` lists providers (`app/core/llm_providers.py`); the first with a key is primary, the rest chain as fallbacks
+- OpenRouter `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` (free models end `:free` and must support tools), Gemini `GEMINI_*`,
+  Groq `GROQ_*`, Cerebras `CEREBRAS_*`; Kimchi `KIMCHI_API_KEY`/`LLM_MODEL` only when listed
+- The judge uses `JUDGE_MODEL` on `JUDGE_PROVIDER`'s key and URL
 - Always build models with `app/core/llm.py:get_llm`; never construct `ChatOpenAI` elsewhere
 - Providers retire model IDs: if a call returns 404, list `/models` and update the env var
 
@@ -70,11 +72,12 @@ threat-RAG/
 
 ## Environment Variables (backend/.env)
 ```
+LLM_ORDER=groq,openrouter,gemini,cerebras
+OPENROUTER_API_KEY=<your-key>
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
 GEMINI_API_KEY=<your-key>
 GEMINI_MODEL=gemini-3.5-flash-lite
-KIMCHI_API_KEY=<optional fallback key>
-KIMCHI_BASE_URL=https://llm.kimchi.dev/openai/v1
-LLM_MODEL=kimi-k2.7
+JUDGE_PROVIDER=gemini
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=threat_intel_v2
 RETRIEVAL_MODE=hybrid
@@ -120,7 +123,7 @@ cd ../web && npm test && npm run e2e
 5. Manual smoke test via `/health/ready`
 
 ## Key Decisions
-- Gemini is the primary LLM and Kimchi the fallback (not Anthropic) — use `app/core/llm.py:get_llm`, which builds `langchain_openai.ChatOpenAI` with a custom base_url
+- LLM providers come from `LLM_ORDER` (Groq primary, then OpenRouter and Gemini; not Anthropic) — use `app/core/llm.py:get_llm`, which chains `langchain_openai.ChatOpenAI` clients with custom base_urls
 - Embeddings are local via Ollama (free) — `nomic-embed-text` at 768 dims, with `search_query:` / `search_document:` prefixes
 - Retrieval goes through `app/rag/retriever.py` (exact ID lookup → dense + lexical RRF → optional rerank → abstain); never call `store.search` from features
 - Retrieval, prompt or model changes must be measured with `python -m app.scripts.run_eval` before merging

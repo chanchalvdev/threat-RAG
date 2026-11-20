@@ -1,9 +1,9 @@
-"""Single construction point for the chat model: Gemini primary, Kimchi fallback.
+"""Single construction point for the chat model: providers tried in `LLM_ORDER` (llm_providers.py).
 
-Both providers speak the OpenAI chat protocol, so the fallback is a second `ChatOpenAI`
-pointed at the other provider's endpoint. With one key, that provider runs alone. The wrapper subclass (rather than
-`.with_fallbacks()`) keeps `bind_tools()` working for LangGraph's ReAct agent: tool
-kwargs flow through `_agenerate`/`_astream` and are replayed on the fallback.
+Every provider speaks the OpenAI chat protocol, so each fallback is another `ChatOpenAI` pointed at
+the next provider's endpoint, chained in order. With one key, that provider runs alone. The wrapper
+subclass (rather than `.with_fallbacks()`) keeps `bind_tools()` working for LangGraph's ReAct agent:
+tool kwargs flow through `_agenerate`/`_astream` and are replayed on the fallback.
 """
 from collections.abc import AsyncIterator
 from typing import Any
@@ -18,6 +18,7 @@ from pydantic import SecretStr
 from app.core.config import Settings, get_settings
 from app.core.gemini_compat import GeminiCompatChatOpenAI
 from app.core.llm_errors import unavailable
+from app.core.llm_providers import Provider, by_name, providers
 from app.core.logging import get_logger
 from app.core.tracing import llm_callbacks
 
@@ -78,44 +79,45 @@ class FallbackChatOpenAI(GeminiCompatChatOpenAI):  # type: ignore[override]  # p
             raise unavailable(primary, exc) or exc
 
 
-def _client(s: Settings, *, model: str, key: str, base_url: str, streaming: bool, temperature: float) -> dict[str, Any]:
+def _client(s: Settings, p: Provider, *, streaming: bool, temperature: float, last: bool = True) -> dict[str, Any]:
     return {
-        "model": model,
-        "api_key": SecretStr(key or "not-set"),
-        "base_url": base_url,
+        "model": p.model,
+        "api_key": SecretStr(p.key or "not-set"),
+        "base_url": p.base_url,
         "temperature": temperature,
         "streaming": streaming,
         "timeout": s.llm_timeout_s,
         "max_completion_tokens": s.llm_max_tokens,
-        "max_retries": 2,
+        # A provider with a fallback behind it fails over at once instead of sitting out a 429 backoff.
+        "max_retries": 2 if last else 0,
         "stream_usage": True,
         "callbacks": llm_callbacks(),
-        "google_compat": "googleapis.com" in base_url,
+        "google_compat": "googleapis.com" in p.base_url,
+        # OpenRouter attributes traffic by these optional headers; other providers ignore them.
+        "default_headers": {"X-Title": "ThreatRAG"} if "openrouter.ai" in p.base_url else None,
     }
-
-
-def providers(s: Settings) -> list[tuple[str, str, str]]:
-    """Configured (model, key, base_url) in priority order."""
-    ordered = [
-        (s.gemini_model, s.gemini_api_key, s.gemini_base_url),
-        (s.llm_model, s.kimchi_api_key, s.kimchi_base_url),
-    ]
-    return [p for p in ordered if p[1]]
 
 
 def fallback_enabled() -> bool:
     return len(providers(get_settings())) > 1
 
 
+def _chain(s: Settings, configured: list[Provider], *, streaming: bool, temperature: float) -> FallbackChatOpenAI:
+    """Primary with each later provider as the previous one's fallback."""
+    model: FallbackChatOpenAI | None = None
+    for p in reversed(configured):
+        kw = _client(s, p, streaming=streaming, temperature=temperature, last=model is None)
+        model = FallbackChatOpenAI(**kw, fallback=model)
+    assert model is not None
+    return model
+
+
 def get_llm(streaming: bool = False, temperature: float = 0.1) -> ChatOpenAI:
     s = get_settings()
-    configured = providers(s) or [(s.llm_model, "", s.kimchi_base_url)]  # no keys: fails at call time
-    clients = [
-        _client(s, model=model, key=key, base_url=base, streaming=streaming, temperature=temperature)
-        for model, key, base in configured
-    ]
-    fallback = FallbackChatOpenAI(**clients[1]) if len(clients) > 1 else None
-    return FallbackChatOpenAI(**clients[0], fallback=fallback)
+    # No keys: build the first provider anyway so the call fails with the provider's own error.
+    first = by_name(s, (s.llm_order.split(",") or ["gemini"])[0]) or by_name(s, "gemini")
+    configured = providers(s) or [first]  # type: ignore[list-item]
+    return _chain(s, configured, streaming=streaming, temperature=temperature)
 
 
 def get_judge_llm() -> ChatOpenAI:
@@ -124,6 +126,7 @@ def get_judge_llm() -> ChatOpenAI:
     if not s.judge_model:
         return get_llm(temperature=0.0)
     configured = providers(s)
-    key = s.judge_api_key or (configured[0][1] if configured else "")
-    base = s.judge_base_url or (configured[0][2] if configured else s.kimchi_base_url)
-    return FallbackChatOpenAI(**_client(s, model=s.judge_model, key=key, base_url=base, streaming=False, temperature=0.0))
+    named = by_name(s, s.judge_provider) if s.judge_provider else None
+    base = named or (configured[0] if configured else Provider("", "", s.gemini_base_url))
+    judge = Provider(s.judge_model, s.judge_api_key or base.key, s.judge_base_url or base.base_url)
+    return FallbackChatOpenAI(**_client(s, judge, streaming=False, temperature=0.0))

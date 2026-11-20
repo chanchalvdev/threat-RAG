@@ -16,6 +16,7 @@ from app.rag.retriever import Retriever
 log = get_logger(__name__)
 MAX_TOOL_CALLS = 10
 _CVE_RE = re.compile(r"^CVE-\d{4}-\d{4,}$")
+TAVILY_URL = "https://api.tavily.com/search"
 
 
 class RAGSearchInput(BaseModel):
@@ -123,13 +124,17 @@ class TavilySearchTool(BaseTool):  # type: ignore[override]  # pydantic __replac
         if not s.tavily_api_key:
             return "Web search not available: TAVILY_API_KEY not configured."
 
-        from langchain_community.tools.tavily_search import TavilySearchResults
         clean = sanitise_tool_input(f"cybersecurity threat: {query}")
-        tool = TavilySearchResults(api_key=s.tavily_api_key, max_results=5)
-        results = await tool.ainvoke({"query": clean})
+        # Direct call: langchain-community's wrapper sends the key in the body, which Tavily now refuses.
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(TAVILY_URL, json={"query": clean, "max_results": 5},
+                                  headers={"Authorization": f"Bearer {s.tavily_api_key}"})
+        if r.status_code != 200:
+            return f"Web search failed: Tavily answered HTTP {r.status_code}."
+        results = r.json().get("results", [])
         return wrap_untrusted(self.name, "\n---\n".join(
-            f"[{r.get('title', '')}] {r.get('url', '')}\n{r.get('content', '')[:300]}"
-            for r in (results if isinstance(results, list) else [])
+            f"[{i.get('title', '')}] {i.get('url', '')}\n{i.get('content', '')[:300]}"
+            for i in (results if isinstance(results, list) else [])
         ))
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
