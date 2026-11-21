@@ -1,0 +1,8 @@
+# Cloudflare Pages project: threatrag.pages.dev → Cloud Run (see pages/_worker.js)
+#   cd threatrag/infra/cloudflare && npx wrangler pages deploy
+name = "threatrag"
+pages_build_output_dir = "./pages"
+compatibility_date = "2026-11-01"
+
+[vars]
+ORIGIN = "https://threatrag-web-hevsruevzq-ew.a.run.app"

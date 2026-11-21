@@ -28,3 +28,6 @@ threatrag/backend/data/
 # Design tooling: review screenshots and caches are regenerated
 .impeccable/review/
 .impeccable/hook.cache.json
+
+# Cloudflare wrangler local state (account IDs, caches)
+.wrangler/

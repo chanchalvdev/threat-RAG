@@ -14,9 +14,16 @@ async def open_pool() -> bool:
     """Open the pool at startup. Returns False (degraded mode) if Postgres is unreachable."""
     global _pool
     s = get_settings()
-    pool = AsyncConnectionPool(conninfo=s.database_url, min_size=2, max_size=10, open=False)
+    # Serverless Postgres (Neon) suspends when idle and drops its connections: hold none open
+    # (min_size 0), close idle ones before the ~5 min suspend, and check each one on checkout.
+    pool = AsyncConnectionPool(
+        conninfo=s.database_url, min_size=0, max_size=10, max_idle=240,
+        check=AsyncConnectionPool.check_connection, open=False,
+    )
     try:
-        await pool.open(wait=True, timeout=5)
+        await pool.open()
+        async with pool.connection(timeout=10) as conn:  # min_size 0 opens nothing: prove reachability
+            await conn.execute("SELECT 1")
     except Exception as exc:
         log.warning("db_unavailable", error=str(exc))
         await pool.close()

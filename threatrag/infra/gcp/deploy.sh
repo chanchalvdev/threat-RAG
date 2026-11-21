@@ -88,9 +88,11 @@ $G run deploy threatrag-web "${COMMON[@]}" --image="$REPO/web:$TAG" --allow-unau
   --cpu=1 --memory=256Mi --concurrency=80 --timeout=900 --port=80 \
   --set-env-vars=BACKEND_URL="$API_URL" --set-secrets=API_KEY=threatrag-api-key:latest
 WEB_URL="$($G run services describe threatrag-web --region="$REGION" --format='value(status.url)')"
-# Report links point at the site; the env var wins over the secret file
+# Report links point at the public address (GCP_PUBLIC_URL, e.g. a Cloudflare front door) or the
+# Cloud Run site; the env var wins over the secret file
+SITE="$(val GCP_PUBLIC_URL)"; SITE="${SITE:-$WEB_URL}"
 $G run services update threatrag-api --region="$REGION" \
-  --update-env-vars="^@^PUBLIC_BASE_URL=$WEB_URL@CORS_ORIGINS=[\"$WEB_URL\"]" >/dev/null  # @ = separator
+  --update-env-vars="^@^PUBLIC_BASE_URL=$SITE@CORS_ORIGINS=[\"$SITE\",\"$WEB_URL\"]" >/dev/null  # @ = separator
 
 step "Daily feed refresh: a Cloud Run job, billed only while it runs"
 JOB_ARGS=(--region="$REGION" --image="$REPO/backend:$TAG" --service-account="$SA" --cpu=1 --memory=1Gi
@@ -107,5 +109,5 @@ $G scheduler jobs describe threatrag-feeds-daily --location="$REGION" >/dev/null
     --time-zone=UTC --http-method=POST --uri="$RUN_URI" --oauth-service-account-email="$SA"
 
 step "Done"
-echo "Site: $WEB_URL"
+echo "Site: $SITE  (Cloud Run: $WEB_URL)"
 echo "API:  $API_URL  (direct calls need X-API-Key; the site adds it server side)"
